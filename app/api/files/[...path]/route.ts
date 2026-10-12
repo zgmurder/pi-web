@@ -11,6 +11,7 @@ import { checkLinkedDirectoryApproval, withOutsideLinkTargets } from "@/lib/link
 import {
   DOCX_PREVIEW_MAX_BYTES,
   IMAGE_PREVIEW_MAX_BYTES,
+  XLSX_PREVIEW_MAX_BYTES,
   documentPreviewKind,
   getAudioMime,
   getDocumentMime,
@@ -507,6 +508,17 @@ export async function GET(
       const documentMime = getDocumentMime(filePath);
       if (documentMime) {
         return streamFile(filePath, stat, documentMime, request.headers.get("range"));
+      }
+      if (getFileExt(filePath) === "xlsx") {
+        if (stat.size > XLSX_PREVIEW_MAX_BYTES) {
+          return NextResponse.json({ error: "XLSX too large for preview (>10MB)" }, { status: 413 });
+        }
+        return streamFile(
+          filePath,
+          stat,
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          request.headers.get("range"),
+        );
       }
       const rawOffset = request.nextUrl.searchParams.get("offset");
       if (rawOffset !== null && !/^\d+$/.test(rawOffset)) {

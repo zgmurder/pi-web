@@ -50,7 +50,8 @@ test("lightweight source rows are skipped for highlighted, diff, and preview vie
 
 test("partly loaded HTML previews up to the HTML cap; partly loaded markdown does not", () => {
   const start = source.indexOf("  const hasPreview = ");
-  const statement = source.slice(start, source.indexOf(";\n", start) + 1);
+  const statementEnd = source.indexOf(";", start);
+  const statement = source.slice(start, statementEnd + 1);
   const hasPreview = new Function("data", "isHtml", "isMarkdown", "isDelimitedTable", "HTML_PREVIEW_MAX_BYTES", `${statement}\nreturn hasPreview;`);
   const cap = 10 * 1024 * 1024;
   const partial = { truncated: true, size: 900 * 1024 };

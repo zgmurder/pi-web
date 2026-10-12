@@ -11,6 +11,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { usePrismLanguages } from "@/hooks/usePrismLanguages";
 import {
   DOCX_PREVIEW_MAX_BYTES,
+  XLSX_PREVIEW_MAX_BYTES,
   HTML_PREVIEW_MAX_BYTES,
   getFileExt,
   isAudioPath,
@@ -24,7 +25,9 @@ import { parseFrontmatter } from "@/lib/frontmatter";
 import { isExternalMarkdownHref, markdownAppUrlTransform, markdownPreviewRehypePlugins, markdownPreviewRemarkPlugins, markdownUrlTransform, normalizeDisplayMath } from "@/lib/markdown";
 import { CodeBlock, MermaidBlock } from "./MermaidBlock";
 import { DelimitedTable } from "./DelimitedTable";
+import { SpreadsheetPreview } from "./SpreadsheetPreview";
 import { isDelimitedTablePath } from "@/lib/delimited-table";
+import { isSpreadsheetPath } from "@/lib/spreadsheet";
 import { FrontmatterCard } from "./FrontmatterCard";
 import { parseUnifiedPatch } from "@/lib/patch";
 import type { GitFileDiffResponse } from "@/lib/git-types";
@@ -925,6 +928,35 @@ function VideoViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
   );
 }
 
+function SpreadsheetViewer({ filePath, cwd, sourceSessionId }: Props) {
+  const previewUrl = getFileApiUrl(filePath, "read", sourceSessionId);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "4px 16px",
+          borderBottom: "1px solid var(--border)",
+          fontSize: 11,
+          color: "var(--text-dim)",
+          background: "var(--bg)",
+          flexShrink: 0,
+        }}
+      >
+        <span style={{ fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={filePath}>
+          {getRelativeFilePath(filePath, cwd)}
+        </span>
+        <span style={{ marginLeft: "auto" }}>xlsx preview</span>
+        <DownloadLink filePath={filePath} sourceSessionId={sourceSessionId} />
+      </div>
+      <SpreadsheetPreview url={previewUrl} filePath={filePath} maxBytes={XLSX_PREVIEW_MAX_BYTES} />
+    </div>
+  );
+}
+
 function DocumentViewer({ filePath, cwd, sourceSessionId, initialPage, watchEnabled = true }: Props) {
   const { t } = useI18n();
   const [watching, setWatching] = useState(false);
@@ -1123,6 +1155,9 @@ export function FileViewer({
   }
   if (isDocumentPreviewPath(filePath)) {
     return <DocumentViewer filePath={filePath} cwd={cwd} sourceSessionId={sourceSessionId} initialPage={initialPage} watchEnabled={watchEnabled} />;
+  }
+  if (isSpreadsheetPath(filePath)) {
+    return <SpreadsheetViewer filePath={filePath} cwd={cwd} sourceSessionId={sourceSessionId} />;
   }
   return (
     <TextFileViewer
@@ -1425,9 +1460,7 @@ function TextFileViewer({
   const isMarkdown = language === "markdown";
   // A table shows a loaded prefix too, without its cut last record; an HTML
   // preview fetches the whole file up to HTML_PREVIEW_MAX_BYTES.
-  const hasPreview = isDelimitedTable || (isHtml
-    ? !!data && (!data.truncated || data.size <= HTML_PREVIEW_MAX_BYTES)
-    : isMarkdown && !data?.truncated);
+  const hasPreview = isDelimitedTable || (isHtml ? !!data && (!data.truncated || data.size <= HTML_PREVIEW_MAX_BYTES) : isMarkdown && !data?.truncated);
   const effectiveDisplayMode = isDeletedDiff ? "diff" : displayMode;
   // A partly loaded HTML file previews whole, so Load more belongs to its source view.
   const showLoadMore = !!data?.truncated && !(isHtml && effectiveDisplayMode === "preview");
