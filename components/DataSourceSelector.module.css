@@ -1,0 +1,16 @@
+.root { position: relative; min-width: 0; max-width: 220px; font-size: 12px; }
+.trigger { display: flex; align-items: center; justify-content: center; gap: 5px; max-width: 100%; height: 32px; padding: 8px 12px; background: none; border: none; border-radius: 9px; color: var(--text-muted); cursor: pointer; font-size: 12px; transition: background 0.12s, color 0.12s; }
+.trigger[aria-expanded="true"], .trigger:not(:disabled):hover { background: var(--bg-hover); color: var(--text); }
+.trigger:disabled { opacity: 0.5; cursor: default; }
+.trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.label { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.popup { position: absolute; bottom: calc(100% + 6px); z-index: 100; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 -4px 16px rgba(0,0,0,0.10); overflow: auto; min-width: 180px; width: max-content; max-width: min(320px, calc(100vw - 32px)); max-height: min(320px, 50dvh); }
+.sources { min-width: 0; border: 0; padding: 0; margin: 0; }
+.sources:disabled { opacity: 0.5; }
+.sources button:disabled { cursor: not-allowed !important; }
+.popup button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.note { padding: 7px 12px; color: var(--text-dim); font-size: 11px; }
+.manage { border-top: 1px solid var(--border); }
+.error { display: block; color: var(--text-muted); overflow-wrap: anywhere; }
+@media (max-width: 767px) { .trigger { padding: 0 6px; } }
+@media (prefers-reduced-motion: reduce) { .trigger { transition: none; } }

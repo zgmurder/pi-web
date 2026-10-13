@@ -19,6 +19,7 @@ import { ChatMinimap, useMessageRefs } from "./ChatMinimap";
 import { ExtensionStatusBar } from "./ExtensionStatusBar";
 import { AnsiText } from "./AnsiText";
 import { useI18n } from "@/hooks/useI18n";
+import { DataSourceSelector } from "./DataSourceSelector";
 import { phaseLabel } from "@/lib/chat-phase-label";
 import { useAgentSession, type AgentEndInfo, type NewSessionChoices, type NoticeItem } from "@/hooks/useAgentSession";
 import { selectHasStreamingContent, selectIsStreaming, selectStreamingMessage, useStreamingSelector } from "@/hooks/useStreamingSelector";
@@ -280,7 +281,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     isNew,
     editEntryId,
     showScrollToBottom,
-    sessionIdRef, scrollContainerRef,
+    sessionIdRef, scrollContainerRef, ensureNewSession,
     lastUserMsgRef, promptAnchorActive,
     handleSend, handleAbort, handleFork, handleEditContent, cancelEdit, handleModelChange,
     handleCompact, handleSteer, handleFollowUp, handlePromptWithStreamingBehavior, handleAbortCompaction,
@@ -962,6 +963,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
       onDismissCompactError={dismissCompactError}
       compactResult={compactResult}
       toolPreset={toolPreset}
+      dataSourceControl={onOpenSettings ? <DataSourceSelector sessionId={session?.id ?? sessionIdRef.current} branchId={activeLeafId} ensureSession={ensureNewSession} disabled={sessionBusy || isCompacting} chatOnly={toolPreset === "none"} onManage={() => onOpenSettings("data-sources")} /> : undefined}
       onToolPresetChange={session || isNew ? handleToolPresetChange : undefined}
       thinkingLevel={thinkingLevel}
       isAutoThinkingSelection={isAutoThinkingSelection}

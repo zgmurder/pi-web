@@ -48,6 +48,9 @@ import { resolveShellTools } from "./powershell-settings";
 import { CHAT_ONLY_RESOURCE_LOADER_OPTIONS, contextFilesSystemPrompt } from "./chat-only";
 import { createExactSystemPromptExtension } from "./exact-system-prompt";
 import { createPiWebBuiltinExtensions, createSubagentCodemodeExtension, createSubagentMcpExtensions } from "./builtin-extensions";
+import { createDataSourceExtension } from "./data-source-extension";
+import { DATA_SOURCE_ENTRY, selectedDataSource } from "./data-sources-shared";
+import { getDataSource } from "./data-sources";
 import type { McpHost } from "./mcp-host";
 import { mcpPromptPreparation, type McpCommandCandidate } from "./mcp-command";
 import { createReadOnlyMcpPolicyExtension, createSubagentMcpPolicyExtension } from "./mcp-read-only-policy";
@@ -808,6 +811,16 @@ export class AgentSessionWrapper {
       }
 
       switch (type) {
+      case "get_data_source":
+        return { id: selectedDataSource(this.inner.sessionManager.getBranch()) };
+      case "set_data_source": {
+        if (this.isRunning()) throw new Error("Wait for the current run before changing the data source.");
+        if (this.chatOnly && command.dataSourceId !== null) throw new Error("Data sources require tools; leave Chat only first.");
+        if (command.dataSourceId !== null && typeof command.dataSourceId !== "string") throw new Error("Invalid data source id.");
+        if (typeof command.dataSourceId === "string") getDataSource(command.dataSourceId);
+        this.inner.sessionManager.appendCustomEntry(DATA_SOURCE_ENTRY, { id: command.dataSourceId });
+        return { id: command.dataSourceId };
+      }
       case "prompt": {
         // Serialize only admission. Once the preceding prompt has either
         // passed or failed preflight, the SDK can atomically decide whether
@@ -2550,6 +2563,7 @@ export async function startRpcSession(
             extensionFactories: [
               ...(builtins?.extensions ?? []),
               createReadOnlyMcpPolicyExtension(),
+              createDataSourceExtension(),
               createProjectCommandBashExtension({
                 cwd: sessionCwd,
                 settings: settingsManager,
