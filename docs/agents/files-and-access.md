@@ -35,7 +35,7 @@
 
 ## XLSX files open as a spreadsheet
 - `.xlsx` files open directly in `FileViewer` through `components/SpreadsheetPreview.tsx`; `.xls` is deliberately unsupported. The browser fetches the already-authorized `/api/files ?type=read` response and parses it with `read-excel-file`, so there is no second file-access path and no server-side workbook cache.
-- Preview is read-only and capped at 10 MB by the file API and again in the browser. It shows all workbook sheets, switches them with tabs, formats scalar values for display, and renders only visible rows with the same fixed-height virtualization and column-width helpers as the CSV/TSV table. It does not preserve Excel formatting, charts, formulas, merged cells or editing.
+- Preview is read-only and capped at 10 MB by the file API and again in the browser. It shows all workbook sheets, switches them with tabs, formats scalar values for display, and renders only visible rows with the same fixed-height virtualization and column-width helpers as the CSV/TSV table. Click-drag (or Shift+click from the anchor) selects a rectangular cell range; the selection bar's @ button inserts the workbook mention plus its sheet and A1 range into the composer, so the agent can edit the source workbook with its normal coding tools. It does not preserve Excel formatting, charts, formulas, merged cells or edit cells in the browser.
 
 ## Web password throttling
 - `lib/auth-throttle.ts` is deliberately global, not per-IP (its header says why). Failures double the delay (1 s → 60 s cap) for everyone; a success or 5 idle minutes resets it. The reset window must stay longer than the max delay, or waiting out one block restarts the burst.

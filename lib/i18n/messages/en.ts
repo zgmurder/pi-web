@@ -1281,6 +1281,7 @@ export const enLocale: LocalePlugin = {
     "i18n.fileViewMode": "File view mode",
     "i18n.compareHead": "Compare working tree with HEAD",
     "i18n.mentionSelectedLines": "Mention selected lines",
+    "i18n.mentionSelectedCells": "Mention selected cells",
     "i18n.disableWrap": "Disable word wrap",
     "i18n.enableWrap": "Enable word wrap",
     "i18n.htmlPreview": "HTML preview",

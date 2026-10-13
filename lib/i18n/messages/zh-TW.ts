@@ -1281,6 +1281,7 @@ export const zhTWLocale: LocalePlugin = {
     "i18n.fileViewMode": "檔案檢視模式",
     "i18n.compareHead": "比較工作目錄與 HEAD",
     "i18n.mentionSelectedLines": "引用選取的行",
+    "i18n.mentionSelectedCells": "引用選取的儲存格",
     "i18n.disableWrap": "停用自動換行",
     "i18n.enableWrap": "啟用自動換行",
     "i18n.htmlPreview": "HTML 預覽",

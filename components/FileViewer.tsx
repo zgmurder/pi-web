@@ -46,6 +46,7 @@ interface Props {
   sourceSessionId?: string | null;
   onOpenFile?: (filePath: string, page?: number) => void;
   onMentionLines?: (relativePath: string, startLine: number, endLine: number) => void;
+  onMentionSpreadsheetRange?: (relativePath: string, sheet: string, range: string) => void;
   /** Insert this file's relative path into the chat input (@ mention). */
   onAtMention?: (relativePath: string, isDir: boolean) => void;
   gitRefreshKey?: number;
@@ -928,8 +929,9 @@ function VideoViewer({ filePath, cwd, sourceSessionId, watchEnabled = true }: Pr
   );
 }
 
-function SpreadsheetViewer({ filePath, cwd, sourceSessionId }: Props) {
-  const previewUrl = getFileApiUrl(filePath, "read", sourceSessionId);
+function SpreadsheetViewer({ filePath, cwd, sourceSessionId, onAtMention, onMentionSpreadsheetRange, gitRefreshKey }: Props) {
+  const { t } = useI18n();
+  const previewUrl = getFileApiUrl(filePath, "read", sourceSessionId, { v: gitRefreshKey });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
@@ -950,9 +952,28 @@ function SpreadsheetViewer({ filePath, cwd, sourceSessionId }: Props) {
           {getRelativeFilePath(filePath, cwd)}
         </span>
         <span style={{ marginLeft: "auto" }}>xlsx preview</span>
+        {onAtMention && (
+          <button
+            type="button"
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={() => onAtMention?.(getRelativeFilePath(filePath, cwd), false)}
+            title={t("files.insertPath")}
+            aria-label={t("files.mention")}
+            className="file-viewer-icon-button"
+          >
+            <MentionIcon />
+          </button>
+        )}
         <DownloadLink filePath={filePath} sourceSessionId={sourceSessionId} />
       </div>
-      <SpreadsheetPreview url={previewUrl} filePath={filePath} maxBytes={XLSX_PREVIEW_MAX_BYTES} />
+      <SpreadsheetPreview
+        url={previewUrl}
+        filePath={filePath}
+        maxBytes={XLSX_PREVIEW_MAX_BYTES}
+        onMentionSelection={onMentionSpreadsheetRange
+          ? (sheet, range) => onMentionSpreadsheetRange(getRelativeFilePath(filePath, cwd), sheet, range)
+          : undefined}
+      />
     </div>
   );
 }
@@ -1136,6 +1157,7 @@ export function FileViewer({
   sourceSessionId,
   onOpenFile,
   onMentionLines,
+  onMentionSpreadsheetRange,
   onAtMention,
   gitRefreshKey,
   initialDisplayMode,
@@ -1157,7 +1179,16 @@ export function FileViewer({
     return <DocumentViewer filePath={filePath} cwd={cwd} sourceSessionId={sourceSessionId} initialPage={initialPage} watchEnabled={watchEnabled} />;
   }
   if (isSpreadsheetPath(filePath)) {
-    return <SpreadsheetViewer filePath={filePath} cwd={cwd} sourceSessionId={sourceSessionId} />;
+    return (
+      <SpreadsheetViewer
+        filePath={filePath}
+        cwd={cwd}
+        sourceSessionId={sourceSessionId}
+        onAtMention={onAtMention}
+        onMentionSpreadsheetRange={onMentionSpreadsheetRange}
+        gitRefreshKey={gitRefreshKey}
+      />
+    );
   }
   return (
     <TextFileViewer

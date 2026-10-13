@@ -12,6 +12,38 @@ export function spreadsheetColumnLabel(index: number): string {
   return label;
 }
 
+export interface SpreadsheetSelection {
+  sheet: string;
+  startRow: number;
+  endRow: number;
+  startColumn: number;
+  endColumn: number;
+  range: string;
+}
+
+export function spreadsheetSelection(
+  sheet: string,
+  anchorRow: number,
+  anchorColumn: number,
+  focusRow: number,
+  focusColumn: number,
+): SpreadsheetSelection {
+  const startRow = Math.min(anchorRow, focusRow);
+  const endRow = Math.max(anchorRow, focusRow);
+  const startColumn = Math.min(anchorColumn, focusColumn);
+  const endColumn = Math.max(anchorColumn, focusColumn);
+  const first = `${spreadsheetColumnLabel(startColumn)}${startRow + 1}`;
+  const last = `${spreadsheetColumnLabel(endColumn)}${endRow + 1}`;
+  return {
+    sheet,
+    startRow,
+    endRow,
+    startColumn,
+    endColumn,
+    range: first === last ? first : `${first}:${last}`,
+  };
+}
+
 export function formatSpreadsheetCell(value: CellValue | null): string {
   if (value == null) return "";
   if (value instanceof Date) return value.toLocaleString();

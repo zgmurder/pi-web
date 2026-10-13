@@ -29,7 +29,7 @@ import { useAudio } from "@/hooks/useAudio";
 import { copyText } from "@/lib/clipboard";
 import { sendAgentCommand } from "@/lib/agent-client";
 import { getFileName } from "@/lib/file-paths";
-import { buildAtMentionText, buildFileAtMentionsText, buildFileLineMentionText } from "@/lib/file-fuzzy";
+import { buildAtMentionText, buildFileAtMentionsText, buildFileLineMentionText, buildSpreadsheetMentionText } from "@/lib/file-fuzzy";
 import {
   claimExtensionAttentionNotification,
   shouldShowBrowserNotification,
@@ -620,6 +620,11 @@ export function AppShell() {
 
   const handleFileLineMention = useCallback((relativePath: string, startLine: number, endLine: number) => {
     chatInputRef.current?.insertText(buildFileLineMentionText(relativePath, startLine, endLine));
+    if (isMobile) { setRightPanelOpen(false); setSidebarOpen(false); }
+  }, [isMobile]);
+
+  const handleSpreadsheetRangeMention = useCallback((relativePath: string, sheet: string, range: string) => {
+    chatInputRef.current?.insertText(buildSpreadsheetMentionText(relativePath, sheet, range));
     if (isMobile) { setRightPanelOpen(false); setSidebarOpen(false); }
   }, [isMobile]);
 
@@ -2721,6 +2726,7 @@ export function AppShell() {
                 viewerState,
               )}
               onMentionLines={rightPanelOpen ? handleFileLineMention : undefined}
+              onMentionSpreadsheetRange={rightPanelOpen ? handleSpreadsheetRangeMention : undefined}
               onAtMention={handleAtMention}
               onOpenFile={(filePath, page) => handleOpenFile(
                 filePath,

@@ -175,13 +175,21 @@ export function buildAtMentionText(entryPath: string, isDir: boolean): string {
   return p.includes(" ") ? `@"${p}" ` : `@${p} `;
 }
 
+function quotedPathMention(entryPath: string): string {
+  return entryPath.includes(" ") ? `@"${entryPath}"` : `@${entryPath}`;
+}
+
 /** Closed file @mention scoped to one logical line or an inclusive line range. */
 export function buildFileLineMentionText(entryPath: string, startLine: number, endLine: number): string {
   const firstLine = Math.max(1, Math.min(startLine, endLine));
   const lastLine = Math.max(1, Math.max(startLine, endLine));
-  const pathMention = entryPath.includes(" ") ? `@"${entryPath}"` : `@${entryPath}`;
   const lineSuffix = firstLine === lastLine ? `:${firstLine}` : `:${firstLine}-${lastLine}`;
-  return `${pathMention}${lineSuffix} `;
+  return `${quotedPathMention(entryPath)}${lineSuffix} `;
+}
+
+/** Closed XLSX @mention followed by the selected sheet and cell range. */
+export function buildSpreadsheetMentionText(entryPath: string, sheet: string, range: string): string {
+  return `${quotedPathMention(entryPath)} (工作表「${sheet}」单元格 ${range}) `;
 }
 
 export function buildFileAtMentionsText(entryPaths: string[]): string {

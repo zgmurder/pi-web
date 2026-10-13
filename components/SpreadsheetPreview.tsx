@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import readExcelFile from "read-excel-file/browser";
 import { measureColumnWidths, visibleRowRange } from "@/lib/delimited-table";
 import { getFileName } from "@/lib/file-paths";
-import { formatSpreadsheetCell, spreadsheetColumnLabel } from "@/lib/spreadsheet";
+import { formatSpreadsheetCell, spreadsheetColumnLabel, spreadsheetSelection, type SpreadsheetSelection } from "@/lib/spreadsheet";
+import { useI18n } from "@/hooks/useI18n";
 
 const ROW_HEIGHT = 26;
 const GUTTER_WIDTH = 56;
@@ -52,7 +53,18 @@ interface SpreadsheetSheet {
   rows: string[][];
 }
 
-export function SpreadsheetPreview({ url, filePath, maxBytes }: { url: string; filePath: string; maxBytes: number }) {
+export function SpreadsheetPreview({
+  url,
+  filePath,
+  maxBytes,
+  onMentionSelection,
+}: {
+  url: string;
+  filePath: string;
+  maxBytes: number;
+  onMentionSelection?: (sheet: string, range: string) => void;
+}) {
+  const { t } = useI18n();
   const [sheets, setSheets] = useState<SpreadsheetSheet[]>([]);
   const [activeSheet, setActiveSheet] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -60,6 +72,9 @@ export function SpreadsheetPreview({ url, filePath, maxBytes }: { url: string; f
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
+  const [selection, setSelection] = useState<SpreadsheetSelection | null>(null);
+  const anchorRef = useRef<{ row: number; column: number } | null>(null);
+  const selectingRef = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -67,6 +82,7 @@ export function SpreadsheetPreview({ url, filePath, maxBytes }: { url: string; f
     setError(null);
     setSheets([]);
     setActiveSheet(0);
+    setSelection(null);
 
     fetch(url, { signal: controller.signal })
       .then(async (response) => {
@@ -123,6 +139,8 @@ export function SpreadsheetPreview({ url, filePath, maxBytes }: { url: string; f
     element.scrollTop = 0;
     element.scrollLeft = 0;
     setScrollTop(0);
+    setSelection(null);
+    anchorRef.current = null;
   }, [activeSheet]);
 
   const sheet = sheets[activeSheet];
@@ -143,6 +161,35 @@ export function SpreadsheetPreview({ url, filePath, maxBytes }: { url: string; f
     viewportHeight,
     OVERSCAN_ROWS,
   );
+
+  const selectCell = (row: number, column: number, extend: boolean) => {
+    if (!sheet) return;
+    const anchor = extend && anchorRef.current ? anchorRef.current : { row, column };
+    anchorRef.current = anchor;
+    setSelection(spreadsheetSelection(sheet.sheet, anchor.row, anchor.column, row, column));
+  };
+
+  const handleCellPointerDown = (event: MouseEvent, row: number, column: number) => {
+    if (event.button !== 0) return;
+    if (!onMentionSelection) return;
+    event.preventDefault();
+    selectingRef.current = true;
+    selectCell(row, column, event.shiftKey);
+  };
+
+  const handleCellPointerEnter = (row: number, column: number) => {
+    if (onMentionSelection && selectingRef.current) selectCell(row, column, true);
+  };
+
+  useEffect(() => {
+    const stopSelecting = () => { selectingRef.current = false; };
+    window.addEventListener("pointerup", stopSelecting);
+    window.addEventListener("blur", stopSelecting);
+    return () => {
+      window.removeEventListener("pointerup", stopSelecting);
+      window.removeEventListener("blur", stopSelecting);
+    };
+  }, []);
 
   if (loading) {
     return <div style={{ padding: 24, color: "var(--text-dim)", fontSize: 12 }}>Loading spreadsheet…</div>;
@@ -168,7 +215,37 @@ export function SpreadsheetPreview({ url, filePath, maxBytes }: { url: string; f
         {widths.map((width, cellIndex) => {
           const value = row[cellIndex] ?? "";
           return (
-            <div key={cellIndex} role="cell" style={{ ...CELL, width }} title={value || undefined}>
+            <div
+              key={cellIndex}
+              role="cell"
+              aria-selected={selection
+                ? rowIndex >= selection.startRow
+                  && rowIndex <= selection.endRow
+                  && cellIndex >= selection.startColumn
+                  && cellIndex <= selection.endColumn
+                : undefined}
+              onPointerDown={(event) => handleCellPointerDown(event, rowIndex, cellIndex)}
+              onPointerEnter={() => handleCellPointerEnter(rowIndex, cellIndex)}
+              style={{
+                ...CELL,
+                width,
+                cursor: onMentionSelection ? "cell" : undefined,
+                background: selection
+                  && rowIndex >= selection.startRow
+                  && rowIndex <= selection.endRow
+                  && cellIndex >= selection.startColumn
+                  && cellIndex <= selection.endColumn
+                  ? "var(--bg-selected)"
+                  : undefined,
+                outline: selection
+                  && rowIndex === selection.startRow
+                  && cellIndex === selection.startColumn
+                  ? "1px solid var(--accent)"
+                  : undefined,
+                outlineOffset: -1,
+              }}
+              title={value || undefined}
+            >
               {value}
             </div>
           );
@@ -179,8 +256,8 @@ export function SpreadsheetPreview({ url, filePath, maxBytes }: { url: string; f
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
-      {sheets.length > 1 && (
-        <div style={{ display: "flex", gap: 4, padding: "5px 8px", borderBottom: "1px solid var(--border)", overflowX: "auto", flexShrink: 0 }}>
+      {(sheets.length > 1 || selection) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 8px", borderBottom: "1px solid var(--border)", overflowX: "auto", flexShrink: 0 }}>
           {sheets.map((item, index) => (
             <button
               key={`${item.sheet}-${index}`}
@@ -189,6 +266,7 @@ export function SpreadsheetPreview({ url, filePath, maxBytes }: { url: string; f
               aria-pressed={activeSheet === index}
               onClick={() => setActiveSheet(index)}
               style={{
+                display: sheets.length > 1 ? undefined : "none",
                 background: activeSheet === index ? "var(--bg-selected)" : "transparent",
                 color: activeSheet === index ? "var(--text)" : "var(--text-muted)",
                 whiteSpace: "nowrap",
@@ -197,6 +275,26 @@ export function SpreadsheetPreview({ url, filePath, maxBytes }: { url: string; f
               {item.sheet}
             </button>
           ))}
+          {selection && (
+            <>
+              <span style={{ marginLeft: sheets.length > 1 ? "auto" : undefined, padding: "0 6px", color: "var(--text-dim)", fontSize: 11, whiteSpace: "nowrap" }}>
+                {selection.sheet} · {selection.range}
+              </span>
+              {onMentionSelection && (
+                <button
+                  type="button"
+                  className="file-viewer-mode-button"
+                  onPointerDown={(event) => event.preventDefault()}
+                  onClick={() => onMentionSelection(selection.sheet, selection.range)}
+                  title={t("i18n.mentionSelectedCells")}
+                  aria-label={t("i18n.mentionSelectedCells")}
+                  style={{ whiteSpace: "nowrap", color: "var(--accent)" }}
+                >
+                  @ {t("i18n.mentionSelectedCells")}
+                </button>
+              )}
+            </>
+          )}
         </div>
       )}
       <div

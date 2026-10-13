@@ -10,6 +10,10 @@
 !.yarn/releases
 !.yarn/versions
 
+# Local examples and generated reports (may contain sensitive data)
+/excel-preview-demo.xlsx
+/output/
+
 # testing
 /coverage
 /test-results/

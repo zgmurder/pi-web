@@ -14,3 +14,10 @@ test("xlsx preview exposes workbook sheets", () => {
   assert.match(source, /sheets\.map\(\(item, index\)/);
   assert.match(source, /setActiveSheet\(index\)/);
 });
+
+test("xlsx preview selects cell ranges and can mention them", () => {
+  assert.match(source, /onPointerDown=\{\(event\) => handleCellPointerDown/);
+  assert.match(source, /onPointerEnter=\{\(\) => handleCellPointerEnter/);
+  assert.match(source, /if \(!onMentionSelection\) return/);
+  assert.match(source, /onMentionSelection\(selection\.sheet, selection\.range\)/);
+});
