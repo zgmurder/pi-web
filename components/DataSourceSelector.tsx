@@ -34,7 +34,7 @@ export function DataSourceSelector({ sessionId, branchId, ensureSession, disable
     document.addEventListener("keydown", escape, true);
     return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", escape, true); };
   }, [visible]);
-  const [sources, setSources] = useState<DataSourcePublic[]>([]);
+  const [sources, setSources] = useState<(Pick<DataSourcePublic, "id" | "name"> & { origin?: "platform" })[]>([]);
   const [id, setId] = useState("");
   const [error, setError] = useState("");
   useEffect(() => {
@@ -43,7 +43,7 @@ export function DataSourceSelector({ sessionId, branchId, ensureSession, disable
       try {
         const r = await fetch("/api/data-sources"); const b = await r.json(); if (!r.ok) throw new Error(b.error);
         const selection = sessionId ? await sendAgentCommand<{ id: string | null }>(sessionId, { type: "get_data_source" }) : { id: null };
-        if (!cancelled) { setSources(b.sources); setId(selection.id ?? ""); setError(""); }
+        if (!cancelled) { setSources(b.sources); setId(selection.id ?? ""); setError(b.warning ?? ""); }
       } catch (e) { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); }
     };
     void load(); window.addEventListener("pi-web:data-sources-changed", load);
@@ -85,7 +85,7 @@ export function DataSourceSelector({ sessionId, branchId, ensureSession, disable
       {id && !sources.some(s => s.id === id) && <div className={styles.note}>{t("dataSource.missing")}</div>}
       {chatOnly && <div className={styles.note}>{t("dataSource.chatOnly")}</div>}
       <fieldset disabled={chatOnly} className={styles.sources}>
-        {sources.map(s => <SelectorRow key={s.id} active={s.id === id} onSelect={() => void select(s.id)}><span className={styles.label} title={s.name}>{s.name}</span></SelectorRow>)}
+        {sources.map(s => <SelectorRow key={s.id} active={s.id === id} onSelect={() => void select(s.id)}><span className={styles.label} title={s.name}>{s.name}{s.origin === "platform" ? ` · ${t("dataSource.platform")}` : ""}</span></SelectorRow>)}
       </fieldset>
       <div className={styles.manage}><SelectorRow active={false} onSelect={() => void select("__manage__")}>{t("dataSource.manage")}</SelectorRow></div>
     </div>}

@@ -2,10 +2,19 @@ import { NextResponse } from "next/server";
 import { hasJsonContentType, isApiRequestAllowed } from "@/lib/request-security";
 import { changeDataSource, listDataSources } from "@/lib/data-sources";
 import { testDataSourceConnection } from "@/lib/data-source-query";
+import { platformSources } from "@/lib/model-platform";
 export const runtime = "nodejs";
 export async function GET(req: Request) {
   if (!isApiRequestAllowed(req)) return NextResponse.json({ error: "Untrusted request" }, { status: 403 });
-  try { return NextResponse.json({ sources: listDataSources() }, { headers: { "Cache-Control": "no-store" } }); }
+  try {
+    const sources = listDataSources();
+    let platform: Awaited<ReturnType<typeof platformSources>> = []; let warning: string | undefined;
+    if (new URL(req.url).searchParams.get("local") !== "1") {
+      try { platform = await platformSources(undefined, req.signal); }
+      catch { warning = "Platform sources unavailable. Check platform settings and authorization."; }
+    }
+    return NextResponse.json({ sources: [...sources, ...platform], warning }, { headers: { "Cache-Control": "no-store" } });
+  }
   catch { return NextResponse.json({ error: "Cannot read data source configuration." }, { status: 500 }); }
 }
 export async function POST(req: Request) {

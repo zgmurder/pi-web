@@ -51,6 +51,7 @@ import { createPiWebBuiltinExtensions, createSubagentCodemodeExtension, createSu
 import { createDataSourceExtension } from "./data-source-extension";
 import { DATA_SOURCE_ENTRY, selectedDataSource } from "./data-sources-shared";
 import { getDataSource } from "./data-sources";
+import { getPlatformSource } from "./model-platform-query";
 import type { McpHost } from "./mcp-host";
 import { mcpPromptPreparation, type McpCommandCandidate } from "./mcp-command";
 import { createReadOnlyMcpPolicyExtension, createSubagentMcpPolicyExtension } from "./mcp-read-only-policy";
@@ -817,7 +818,13 @@ export class AgentSessionWrapper {
         if (this.isRunning()) throw new Error("Wait for the current run before changing the data source.");
         if (this.chatOnly && command.dataSourceId !== null) throw new Error("Data sources require tools; leave Chat only first.");
         if (command.dataSourceId !== null && typeof command.dataSourceId !== "string") throw new Error("Invalid data source id.");
-        if (typeof command.dataSourceId === "string") getDataSource(command.dataSourceId);
+        if (typeof command.dataSourceId === "string") {
+          if (command.dataSourceId.startsWith("platform:")) await getPlatformSource(command.dataSourceId);
+          else getDataSource(command.dataSourceId);
+        }
+        // Platform validation awaits HTTP; a prompt may have started meanwhile.
+        if (this.isRunning()) throw new Error("Wait for the current run before changing the data source.");
+        if (this.chatOnly && command.dataSourceId !== null) throw new Error("Data sources require tools; leave Chat only first.");
         this.inner.sessionManager.appendCustomEntry(DATA_SOURCE_ENTRY, { id: command.dataSourceId });
         return { id: command.dataSourceId };
       }

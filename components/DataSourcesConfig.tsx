@@ -4,10 +4,12 @@ import { useI18n } from "@/hooks/useI18n";
 import type { DataSourcePublic } from "@/lib/data-sources-shared";
 import { ConfigButton, ConfigDetail, ConfigField, ConfigPanelShell, ConfigSplitView, ConfigSidebar, ConfigSidebarList, ConfigSidebarItem, ConfigDetailHeader, ConfigDetailTitle } from "./SettingsUi";
 import styles from "./DataSourcesConfig.module.css";
+import { ModelPlatformSources } from "./ModelPlatformSources";
 
 const empty = { id: "", name: "", host: "", port: 3306, database: "", user: "", tls: true, notes: "", queries: [], hasPassword: false } satisfies DataSourcePublic;
 export function DataSourcesConfig() {
   const { t } = useI18n();
+  const [view, setView] = useState<"platform" | "local">("platform");
   const [sources, setSources] = useState<DataSourcePublic[]>([]);
   const [draft, setDraft] = useState<DataSourcePublic>(empty);
   const [password, setPassword] = useState("");
@@ -18,7 +20,7 @@ export function DataSourcesConfig() {
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/data-sources").then(async r => { const b = await r.json(); if (!r.ok) throw new Error(b.error); return b; })
+    fetch("/api/data-sources?local=1").then(async r => { const b = await r.json(); if (!r.ok) throw new Error(b.error); return b; })
       .then(b => { if (!cancelled) { setSources(b.sources); setLoaded(true); } }).catch(e => { if (!cancelled) { setStatus(e.message); setFailed(true); } });
     return () => { cancelled = true; };
   }, []);
@@ -45,7 +47,11 @@ export function DataSourcesConfig() {
     finally { setBusy(false); }
   }
   return <ConfigPanelShell embedded title={t("dataSource.title")} onClose={() => {}}>
-    <div className={styles.panel}>
+    <div className={styles.tabs} role="group" aria-label={t("dataSource.title")}>
+      <button type="button" aria-pressed={view === "platform"} onClick={() => setView("platform")}>{t("dataSource.platform")}</button>
+      <button type="button" aria-pressed={view === "local"} onClick={() => setView("local")}>{t("dataSource.local")}</button>
+    </div>
+    {view === "platform" ? <ModelPlatformSources /> : <div className={styles.panel}>
     <ConfigSplitView>
       <ConfigSidebar>
         <div className={styles.sidebarHeader}><ConfigButton disabled={busy || !loaded} onClick={() => choose("")}>{t("dataSource.add")}</ConfigButton></div>
@@ -97,6 +103,6 @@ export function DataSourcesConfig() {
     </footer>
       </div>
     </ConfigSplitView>
-    </div>
+    </div>}
   </ConfigPanelShell>;
 }

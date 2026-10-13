@@ -2,6 +2,7 @@ import { Type } from "@earendil-works/pi-ai";
 import type { InlineExtension } from "@earendil-works/pi-coding-agent";
 import { selectedDataSource } from "./data-sources-shared";
 import { getDataSource } from "./data-sources";
+import { queryPlatform } from "./model-platform-query";
 import { executeDataSourceQuery, inspectDataSource, queryDataSourceSql } from "./data-source-query";
 
 export function createDataSourceExtension(): InlineExtension {
@@ -13,8 +14,12 @@ export function createDataSourceExtension(): InlineExtension {
       async execute(_id, args, signal, _update, ctx) {
         const id = selectedDataSource(ctx.sessionManager.getBranch());
         if (!id) throw new Error("No data source selected. Ask the user to choose one beside Tools.");
-        const source = getDataSource(id);
         if ((args.action && args.query) || (args.sql && args.action !== "sql")) throw new Error("Choose schema, sql, or a saved query template, not multiple modes.");
+        if (id.startsWith("platform:")) {
+          const result = await queryPlatform(id, args, signal);
+          return { content: [{ type: "text", text: JSON.stringify(result) }], details: undefined };
+        }
+        const source = getDataSource(id);
         const result = args.action === "schema" ? await inspectDataSource(id, args.table, args.offset, signal)
           : args.action === "sql" ? await queryDataSourceSql(id, args.sql ?? "", args.start || args.end ? { start: args.start ?? "", end: args.end ?? "" } : undefined, signal)
           : args.query ? await executeDataSourceQuery(id, args.query, { start: args.start ?? "", end: args.end ?? "" }, signal)
