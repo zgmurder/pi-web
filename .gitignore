@@ -12,7 +12,10 @@
 
 # Local examples and generated reports (may contain sensitive data)
 /excel-preview-demo.xlsx
+/exports/
 /output/
+/scripts/report-template-demo/
+/*.docx
 
 # testing
 /coverage
