@@ -67,6 +67,7 @@ Environment:
   PI_WEB_SKIP_VERSION_CHECK  Set to 1 to disable Pi Web update checks
   PI_WEB_IDLE_TIMEOUT_MS     Session idle timeout in ms (0 disables; default 600000)
   PI_WEB_SHUTDOWN_DEADLINE_MS  Shutdown wait for extensions in ms (default 5000)
+  PI_CHROME_GATEWAY_INTERNAL_TOKEN  Enable authenticated pi-chrome gateway calls
 `;
 }
 

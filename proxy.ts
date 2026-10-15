@@ -28,8 +28,15 @@ function tooManyAttempts(retryAfterMs: number): NextResponse {
 export function proxy(request: NextRequest) {
   const isApiRequest = request.nextUrl.pathname === "/api"
     || request.nextUrl.pathname.startsWith("/api/");
+  const isChromeDeviceRequest = request.nextUrl.pathname.startsWith("/api/chrome-gateway/device/")
+    || request.nextUrl.pathname === "/api/chrome-gateway/pair/claim";
+  // Chrome extensions are cross-origin by design; device routes authenticate with pairing codes
+  // or per-device bearer tokens, but still enforce the configured Host allow-list and extension origin.
+  const deviceOrigin = request.headers.get("origin") ?? "";
+  const isChromeDeviceOriginAllowed = !request.headers.has("origin") && !request.headers.has("sec-fetch-site")
+    || (deviceOrigin.startsWith("chrome-extension://") && request.headers.get("sec-fetch-site") === "cross-site");
   const isTrustedRequest = isApiRequest
-    ? isApiRequestAllowed(request)
+    ? isChromeDeviceRequest ? isApiRequestHostAllowed(request) && isChromeDeviceOriginAllowed : isApiRequestAllowed(request)
     : isApiRequestHostAllowed(request);
 
   if (!isTrustedRequest) {
@@ -67,6 +74,8 @@ export function proxy(request: NextRequest) {
       : NextResponse.next();
   }
   if (request.nextUrl.pathname === "/api/web-auth") return NextResponse.next();
+  // Device endpoints use one-time pairing codes or per-device bearer tokens.
+  if (isChromeDeviceRequest) return NextResponse.next();
 
   if (!authenticated) {
     if (!isApiRequest) {

@@ -64,6 +64,7 @@ For port and hostname, command-line options override the corresponding environme
 | `PI_WEB_PASSWORD` | Enable browser password login; API clients may use Basic Auth with username `pi` | Authentication disabled |
 | `PI_WEB_IDLE_TIMEOUT_MS` | Session idle timeout in milliseconds, up to `2147483647`; `0` disables idle shutdown; invalid or out-of-range values use the default | `600000` (10 min) |
 | `PI_WEB_SHUTDOWN_DEADLINE_MS` | How long extensions get to handle `session_shutdown` before a closing session is disposed anyway, in milliseconds up to `2147483647`; `0`, invalid or out-of-range values use the default | `5000` (5 s) |
+| `PI_CHROME_GATEWAY_INTERNAL_TOKEN` | Shared server-local token used by the pi-chrome plugin to call the paired-device gateway | Unset (gateway plugin calls disabled) |
 
 Set `PI_WEB_APP_NAME` before starting the server (for example, `PI_WEB_APP_NAME='Work Pi' pi-web`). After changing it, restart the server to serve the new manifest; no rebuild is required. Updates to the name of an already installed PWA are managed by the browser and are not guaranteed to appear immediately. This does not change the page title or icons.
 
@@ -83,6 +84,12 @@ PI_WEB_PASSWORD='a-long-random-password' pi-web --hostname 0.0.0.0
 ```
 
 Password authentication does not encrypt the connection. Do not expose Pi Web over plain HTTP to the internet; use HTTPS through a trusted reverse proxy or a trusted VPN. If a reverse proxy sends an external hostname, add that exact name to `PI_WEB_ALLOWED_HOSTS`. This allow-list does not change the address Pi Web binds to.
+
+### Paired Chrome gateway
+
+The optional pi-chrome gateway lets Chrome extensions on other computers connect to this Pi Web server. Set the same long random value in `PI_CHROME_GATEWAY_INTERNAL_TOKEN` for Pi Web and in the pi-chrome plugin environment. Configure the plugin's base URL with `PI_CHROME_GATEWAY_URL` (for example `https://pi.example.local/api/chrome-gateway`). Remote Chrome clients must use HTTPS; plain HTTP is only supported for localhost development.
+
+Device credentials and session bindings are stored in `~/.pi/agent/pi-chrome-gateway/devices.json` with private file permissions. The first version is single-server only: do not load-balance the gateway across multiple Pi Web processes. In pi-chrome, run `/chrome pair`, enter the one-time code in the Chrome extension popup, then run `/chrome authorize`.
 
 ### HTTP Proxy
 
