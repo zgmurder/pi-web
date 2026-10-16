@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { sendAgentCommand } from "@/lib/agent-client";
 import type {
+  LocalMarketPlugin,
   PluginPackageInfo,
   PluginStandaloneExtensionInfo,
   PluginUpdateResult,
@@ -253,8 +254,11 @@ function AddPluginPanel({
   busy,
   actionError,
   onSourceChange,
+  marketPlugins,
+  marketLoading,
   onScopeChange,
   onInstall,
+  onInstallMarket,
 }: {
   cwd: string;
   source: string;
@@ -262,29 +266,19 @@ function AddPluginPanel({
   projectResourcesLoaded: boolean;
   busy: boolean;
   actionError: string | null;
+  marketPlugins: LocalMarketPlugin[];
+  marketLoading: boolean;
   onSourceChange: (value: string) => void;
   onScopeChange: (scope: PluginScope) => void;
   onInstall: () => void;
+  onInstallMarket: (plugin: LocalMarketPlugin) => void;
 }) {
   const { t } = useI18n();
 
   return (
     <ConfigAddSourcePanel
       title={t("i18n.addPlugin")}
-      catalogs={[{
-        href: "https://pi.dev/packages",
-        label: "pi.dev/packages",
-        icon: (
-          <svg width="28" height="28" viewBox="0 0 800 800" aria-hidden="true" focusable="false">
-            <path
-              fill="#000"
-              fillRule="evenodd"
-              d="M165.29 165.29H517.36V400H400V517.36H282.65V634.72H165.29ZM282.65 282.65V400H400V282.65Z"
-            />
-            <path fill="#000" d="M517.36 400H634.72V634.72H517.36Z" />
-          </svg>
-        ),
-      }]}
+      catalogs={[]}
       target={
         <ConfigSaveTarget
           value={scope}
@@ -318,6 +312,24 @@ function AddPluginPanel({
       >
         {busy ? t("i18n.installing") : t("i18n.install")}
       </ConfigButton>
+
+      <ConfigSectionTitle>{t("market.localPlugins")}</ConfigSectionTitle>
+      {marketLoading ? (
+        <div className="config-sidebar-message">{t("i18n.loading")}</div>
+      ) : marketPlugins.length === 0 ? (
+        <ConfigEmptyState>{t("market.noPlugins")}</ConfigEmptyState>
+      ) : marketPlugins.map((plugin) => (
+        <div key={plugin.id} style={{ display: "flex", gap: 12, alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>{plugin.name}</div>
+            {plugin.description && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3 }}>{plugin.description}</div>}
+            {plugin.version && <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 3 }}>v{plugin.version}</div>}
+          </div>
+          <ConfigButton size="small" onClick={() => onInstallMarket(plugin)} disabled={busy}>
+            {busy ? t("i18n.installing") : t("i18n.install")}
+          </ConfigButton>
+        </div>
+      ))}
     </ConfigAddSourcePanel>
   );
 }
@@ -587,6 +599,8 @@ export function PluginsConfig({
   const [addMode, setAddMode] = useState(false);
   const [installSource, setInstallSource] = useState("");
   const [installScope, setInstallScope] = useState<PluginScope>("global");
+  const [marketPlugins, setMarketPlugins] = useState<LocalMarketPlugin[]>([]);
+  const [marketLoading, setMarketLoading] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -643,6 +657,19 @@ export function PluginsConfig({
     setUpdateError(null);
     void loadPlugins();
   }, [cwd]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!addMode) return;
+    setMarketLoading(true);
+    fetch("/api/market")
+      .then(async (response) => {
+        const result = await response.json() as { plugins?: LocalMarketPlugin[]; error?: string };
+        if (!response.ok || result.error) throw new Error(result.error ?? `HTTP ${response.status}`);
+        setMarketPlugins(result.plugins ?? []);
+      })
+      .catch((error) => setActionError(error instanceof Error ? error.message : String(error)))
+      .finally(() => setMarketLoading(false));
+  }, [addMode]);
 
   // Whether project packages load, and the Project scope can be chosen, follows
   // the folder's trust, which can change while this section stays mounted
@@ -864,6 +891,32 @@ export function PluginsConfig({
     }
   }, [cwd, installScope, installSource, t]);
 
+  const installMarketPlugin = useCallback(async (plugin: LocalMarketPlugin) => {
+    const key = `${installScope}\0market:${plugin.id}`;
+    setBusyKey(`install:${key}`);
+    setActionError(null);
+    try {
+      const res = await fetch("/api/plugins", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "install", marketId: plugin.id, scope: installScope, cwd }),
+      });
+      const next = (await res.json()) as PluginsResponse & { error?: string };
+      if (!res.ok || next.error) throw new Error(next.error ?? `HTTP ${res.status}`);
+      setData(next);
+      const installed = next.packages.find((pkg) =>
+        pkg.scope === installScope && pkg.packageName === plugin.name,
+      );
+      setSelected(installed ? packageKey(installed) : key);
+      setAddMode(false);
+      setActionMessage(t("i18n.packageInstalled"));
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusyKey(null);
+    }
+  }, [cwd, installScope, t]);
+
   const reloadSession = useCallback(async () => {
     if (!sessionId) return;
     setBusyKey("reload");
@@ -1014,9 +1067,12 @@ export function PluginsConfig({
                 projectResourcesLoaded={projectResourcesLoaded}
                 busy={addBusy}
                 actionError={actionError}
+                marketPlugins={marketPlugins}
+                marketLoading={marketLoading}
                 onSourceChange={setInstallSource}
                 onScopeChange={setInstallScope}
                 onInstall={installPlugin}
+                onInstallMarket={installMarketPlugin}
               />
             ) : loading ? null : selectedExtension ? (
               <StandaloneExtensionDetail extension={selectedExtension} />

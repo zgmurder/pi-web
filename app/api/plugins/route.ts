@@ -11,6 +11,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { getAllowedFileRoots, isExistingFilePathAllowed } from "@/lib/file-access";
 import { hasJsonContentType, isApiRequestAllowed } from "@/lib/request-security";
+import { getLocalMarketPluginPath } from "@/lib/local-market";
 import { getProjectTrustStatus } from "@/lib/project-trust";
 import { isPluginSourceCheckable } from "@/lib/plugin-updates";
 import type {
@@ -433,6 +434,7 @@ export async function POST(req: Request) {
     const body = await req.json() as {
       action?: PluginAction;
       source?: string;
+      marketId?: string;
       scope?: PluginScope;
       packages?: unknown;
       cwd?: string;
@@ -479,10 +481,14 @@ export async function POST(req: Request) {
       agentDir,
       settingsManager,
     });
-    const source = body.source?.trim();
+    let source = body.source?.trim();
     const local = scope === "project";
 
     if (body.action === "install") {
+      if (body.marketId?.trim()) {
+        source = await getLocalMarketPluginPath(body.marketId.trim());
+        if (!source) return NextResponse.json({ error: "Market plugin not found" }, { status: 404 });
+      }
       if (!source) return NextResponse.json({ error: "source required" }, { status: 400 });
       await packageManager.installAndPersist(source, { local });
     } else if (body.action === "remove") {

@@ -55,6 +55,26 @@ export interface SkillSearchResult {
   url: string;
 }
 
+export interface LocalMarketPlugin {
+  id: string;
+  name: string;
+  description?: string;
+  version?: string;
+}
+
+export interface LocalMarketSkill {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface LocalMarketCatalog {
+  root: string;
+  plugins: LocalMarketPlugin[];
+  skills: LocalMarketSkill[];
+  diagnostics: string[];
+}
+
 export type SkillInstallScope = "global" | "project";
 
 export interface SkillInstallInfo {

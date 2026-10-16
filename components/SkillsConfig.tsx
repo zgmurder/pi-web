@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import type {
+  LocalMarketSkill,
   SkillContentResponse,
   SkillInfo as Skill,
   SkillInstallScope,
@@ -33,6 +34,7 @@ import {
   ConfigPanelShell,
   ConfigSaveTarget,
   ConfigScopeTag,
+  ConfigSectionTitle,
   ConfigSidebar,
   ConfigSidebarGroupLabel,
   ConfigSidebarGroupStatus,
@@ -302,17 +304,20 @@ function SkillDetail({
 function AddSkillPanel({
   cwd,
   installedPackages,
+  installedSkillNames,
   projectResourcesLoaded,
   onInstalled,
 }: {
   cwd: string;
   installedPackages: Record<SkillInstallScope, ReadonlySet<string>>;
+  installedSkillNames: Record<SkillInstallScope, ReadonlySet<string>>;
   projectResourcesLoaded: boolean;
   onInstalled: () => void;
 }) {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SkillSearchResult[]>([]);
+  const [marketSkills, setMarketSkills] = useState<LocalMarketSkill[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [installing, setInstalling] = useState<string | null>(null);
@@ -325,6 +330,13 @@ function AddSkillPanel({
 
   useEffect(() => {
     inputRef.current?.focus();
+    fetch("/api/market")
+      .then(async (response) => {
+        const result = await response.json() as { skills?: LocalMarketSkill[]; error?: string };
+        if (!response.ok || result.error) throw new Error(result.error ?? `HTTP ${response.status}`);
+        setMarketSkills(result.skills ?? []);
+      })
+      .catch((error) => setSearchError(error instanceof Error ? error.message : String(error)));
   }, []);
 
   const search = useCallback(async (q: string) => {
@@ -356,14 +368,14 @@ function AddSkillPanel({
   }, [t]);
 
   const install = useCallback(
-    async (pkg: string) => {
+    async (pkg: string, marketId?: string) => {
       setInstalling(pkg);
       setInstallError(null);
       try {
         const res = await fetch("/api/skills/install", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ package: pkg, scope, cwd }),
+          body: JSON.stringify(marketId ? { marketId, scope, cwd } : { package: pkg, scope, cwd }),
         });
         const d = (await res.json()) as { success?: boolean; error?: string };
         if (!res.ok || d.error) {
@@ -401,7 +413,7 @@ function AddSkillPanel({
       >
         <ConfigAddSourceHeading
           title={t("i18n.addSkill")}
-          catalogs={[{ href: "https://skills.sh", label: "skills.sh" }]}
+          catalogs={[]}
           target={
             <ConfigSaveTarget
               value={scope}
@@ -459,6 +471,34 @@ function AddSkillPanel({
           </div>
         )}
       </div>
+
+      <ConfigSectionTitle>{t("market.localSkills")}</ConfigSectionTitle>
+      {marketSkills.length === 0 ? (
+        <ConfigEmptyState>{t("market.noSkills")}</ConfigEmptyState>
+      ) : (
+        <div>
+          {marketSkills.map((skill) => {
+            const isInstalled = installedSkillNames[scope].has(skill.name)
+              || newlyInstalledPkgs.has(`${scope}:${skill.name}`);
+            const isInstalling = installing === skill.name;
+            return (
+              <div key={skill.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{skill.name}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3 }}>{skill.description}</div>
+                </div>
+                <ConfigButton
+                  size="small"
+                  onClick={() => !isInstalled && !isInstalling && install(skill.name, skill.id)}
+                  disabled={isInstalled || isInstalling || installing !== null}
+                >
+                  {isInstalled ? t("i18n.installed") : isInstalling ? t("i18n.installing") : t("i18n.install")}
+                </ConfigButton>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Results list ── */}
       {results.length > 0 && (
@@ -958,6 +998,14 @@ export function SkillsConfig({
               <AddSkillPanel
                 cwd={cwd}
                 projectResourcesLoaded={projectResourcesLoaded}
+                installedSkillNames={{
+                  global: new Set(
+                    skills.filter((skill) => sourceLabel(skill) === "global").map((skill) => skill.name),
+                  ),
+                  project: new Set(
+                    skills.filter((skill) => sourceLabel(skill) === "project").map((skill) => skill.name),
+                  ),
+                }}
                 installedPackages={{
                   global: new Set(
                     skills

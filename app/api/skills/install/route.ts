@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import path from "path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { runNpx } from "@/lib/npx";
+import { installLocalMarketSkill } from "@/lib/local-market";
 import { getAllowedFileRoots, isExistingFilePathAllowed } from "@/lib/file-access";
 import { hasJsonContentType, isApiRequestAllowed } from "@/lib/request-security";
 import { getProjectTrustStatus } from "@/lib/project-trust";
@@ -9,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 const ANSI_RE = /\x1B\[[0-9;]*m/g;
 
-// POST /api/skills/install  body: { package: string; scope: "global" | "project"; cwd?: string }
+// POST /api/skills/install  body: { package?: string; marketId?: string; scope: "global" | "project"; cwd?: string }
 export async function POST(req: Request) {
   if (!isApiRequestAllowed(req)) {
     return NextResponse.json({ error: "Untrusted API request" }, { status: 403 });
@@ -19,8 +21,15 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { package: pkg, scope, cwd } = await req.json() as { package?: string; scope?: string; cwd?: string };
-    if (!pkg?.trim()) return NextResponse.json({ error: "package required" }, { status: 400 });
+    const { package: pkg, marketId, scope, cwd } = await req.json() as {
+      package?: string;
+      marketId?: string;
+      scope?: string;
+      cwd?: string;
+    };
+    if (!marketId?.trim() && !pkg?.trim()) {
+      return NextResponse.json({ error: "package or marketId required" }, { status: 400 });
+    }
 
     const isGlobal = scope !== "project";
     if (!isGlobal) {
@@ -36,7 +45,15 @@ export async function POST(req: Request) {
         );
       }
     }
-    const args = ["skills", "add", pkg.trim(), "-y", "--agent", "pi"];
+    if (marketId?.trim()) {
+      const destinationRoot = isGlobal
+        ? path.join(getAgentDir(), "skills")
+        : path.join(cwd!, ".pi", "skills");
+      await installLocalMarketSkill(marketId.trim(), destinationRoot);
+      return NextResponse.json({ success: true });
+    }
+
+    const args = ["skills", "add", pkg!.trim(), "-y", "--agent", "pi"];
     if (isGlobal) args.push("-g");
 
     console.log(`[skills/install] running: npx ${args.join(" ")}`);
