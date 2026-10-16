@@ -1,0 +1,31 @@
+name: Sync upstream
+
+on:
+  schedule:
+    # 10:00 Asia/Shanghai (GitHub cron uses UTC).
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream-main
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    if: github.repository == 'zgmurder/pi-web'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Fast-forward main from upstream
+        run: |
+          git remote add upstream https://github.com/agegr/pi-web.git
+          git fetch upstream main
+          git merge --ff-only upstream/main
+          git push origin main
