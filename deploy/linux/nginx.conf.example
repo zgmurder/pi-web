@@ -1,0 +1,31 @@
+# Replace hostname, certificate paths and port. Install inside nginx's http context.
+# Provision DNS and trusted internal TLS certificates before enabling.
+server {
+    listen 80;
+    server_name alice.pi.internal;
+    return 301 https://alice.pi.internal$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name alice.pi.internal;
+    ssl_certificate /etc/nginx/tls/alice.pi.internal.crt;
+    ssl_certificate_key /etc/nginx/tls/alice.pi.internal.key;
+    client_max_body_size 128m;
+
+    location / {
+        proxy_pass http://127.0.0.1:30151;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Connection "";
+        # Defense in depth; each instance must still rotate its private preview secrets.
+        proxy_set_header X-Prerender-Revalidate "";
+        proxy_set_header X-Middleware-Subrequest "";
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+}

@@ -1,0 +1,38 @@
+[Unit]
+Description=Pi Web private instance %i
+After=network.target
+StartLimitIntervalSec=120
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=pi-%i
+Group=pi-%i
+EnvironmentFile=/etc/pi-web/%i.env
+WorkingDirectory=/srv/pi-web/instances/%i/current
+# Fail closed instead of the upstream launcher's warning-only fallback.
+ExecStartPre=/usr/bin/node -e "const r=require('./bin/rotate-preview-secrets').rotatePreviewSecrets('.next');if(!r.ok){console.error('Preview secret rotation failed:',r.reason);process.exit(1)}"
+ExecStart=/usr/bin/node bin/pi-web.js --no-open -H 127.0.0.1 -p ${PI_WEB_PORT}
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=45
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+CapabilityBoundingSet=
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=tmpfs
+BindPaths=/home/pi-%i
+ReadWritePaths=/srv/pi-web/instances/%i/current/.next
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+# Initial per-instance ceilings, not measured capacity recommendations.
+MemoryMax=2G
+TasksMax=256
+CPUQuota=200%
+
+[Install]
+WantedBy=multi-user.target
