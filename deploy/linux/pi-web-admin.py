@@ -152,7 +152,9 @@ def build(args):
         for command in ([NODE, 'node_modules/typescript/bin/tsc', '--noEmit'],
                         ['npm', 'test'], ['npm', 'run', 'lint'], ['npm', 'run', 'build']):
             log('Running ' + ' '.join(command))
-            run(*command, cwd=work, env=env)
+            # Unit tests mock update commands; offline mode would bypass those assertions.
+            command_env = {**env, 'PI_OFFLINE': '0'} if command == ['npm', 'test'] else env
+            run(*command, cwd=work, env=command_env)
         release = commit[:12] + '-' + datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S') + '-' + secrets.token_hex(4)
         target = destination / release
         pending = destination / ('.' + release)

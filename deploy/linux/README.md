@@ -65,6 +65,27 @@ sudo chmod -R a+rX /opt/pi-market
 
 ## 3. 构建一次（非 root 的专用构建账号）
 
+### 只有 Windows 开发机：使用本机 Docker 构建 Linux 产物
+
+内网私有发布仓库：`ssh://admin@192.168.31.98:29418/~admin/pi-web-releases.git`。将其克隆到源码仓库同级的 `pi-web-releases`，保持工作区干净。在 Windows 安装 Python >= 3.11、Git，并启动 Docker Desktop 的 Linux containers：
+
+```powershell
+python deploy/linux/build-release.py
+# 非同级目录时：
+python deploy/linux/build-release.py --release-repo E:/releases/pi-web-releases
+```
+
+`build-release.py` 默认输出到同级发布仓库；`Dockerfile.builder` 固定 Debian Bookworm / Linux amd64 / Node v22.19.0 基础镜像摘要。容器以非 root 用户运行现有构建流程，输入仅为已提交 HEAD 的 Git bundle 和部署工具，不挂载开发工作区、凭据或 Docker socket。首次准备镜像和 npm 依赖需要网络。目标服务器必须使用兼容的 Linux/glibc 和精确相同的 Node 版本，其他架构需另建发布流程。
+
+只有完整构建、测试、lint 成功后才替换发布仓库的 `pi-web-linux-x64.tar.gz`、`release.json`、`SHA256SUMS`；不会自动提交、推送或部署。发布者检查后将三者一起提交推送。失败时不上传半成品；临时构建目录自动清理。发布工作目录应限制访问，不要公开构建包。
+
+生产服务器在私有暂存目录 `git pull --ff-only` 后校验 `sha256sum -c SHA256SUMS`，将可信包解压至私有目录，再按下文执行 `publish` / `deploy`。不要在运行目录直接 pull。认证交给 SSH 密钥或交互提示，不在脚本中保存密码。此流程不包含自动生产更新。
+
+入口测试（无需 Docker）：`python -m unittest discover -s deploy/linux -p test_build_release.py -v`。
+
+### 已有 Linux 构建账号
+
+
 从内网获取一个明确提交，在任意非开发工作目录发起：
 
 ```bash

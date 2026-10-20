@@ -32,6 +32,25 @@ class AdminTests(unittest.TestCase):
         admin.write_json(admin.CONFIG / 'alice.json', {'name': 'alice', 'port': 30151})
         self.commands = []
 
+    def test_build_only_disables_offline_mode_for_unit_tests(self):
+        args = admin.parser().parse_args(['build', '--repo', 'test.bundle', '--commit', 'a' * 40,
+                                          '--output', str(Path(self.tmp.name) / 'artifacts')])
+        calls = []
+
+        def fake_run(*command, **kwargs):
+            if 'env' in kwargs:
+                calls.append((command, kwargs['env']['PI_OFFLINE']))
+            if command == ('npm', 'run', 'build'):
+                raise RuntimeError('stop before artifact assembly')
+
+        with patch.object(admin.os, 'geteuid', return_value=1000), \
+             patch.object(admin, 'run', side_effect=fake_run), \
+             patch.object(admin, 'output', return_value='a' * 40), \
+             self.assertRaisesRegex(RuntimeError, 'stop before artifact assembly'):
+            admin.build(args)
+        self.assertEqual([offline for command, offline in calls if command == ('npm', 'test')], ['0'])
+        self.assertTrue(all(offline == '1' for command, offline in calls if command != ('npm', 'test')))
+
     def test_names_and_releases_refuse_path_injection(self):
         for name in ('../bob', 'Alice', '-root', 'a b', 'a\nb', 'x' * 25):
             with self.assertRaises(ValueError):
