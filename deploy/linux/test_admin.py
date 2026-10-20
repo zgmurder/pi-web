@@ -51,6 +51,30 @@ class AdminTests(unittest.TestCase):
         self.assertEqual([offline for command, offline in calls if command == ('npm', 'test')], ['0'])
         self.assertTrue(all(offline == '1' for command, offline in calls if command != ('npm', 'test')))
 
+    def test_next_cache_is_lockfile_scoped_and_failed_builds_do_not_replace_it(self):
+        root = Path(self.tmp.name)
+        work, cache = root / 'work', root / 'cache'
+        work.mkdir()
+        lockfile = work / 'package-lock.json'
+        lockfile.write_text('first')
+        local = work / '.next/cache'
+        with admin.next_build_cache(work, cache):
+            local.mkdir(parents=True)
+            (local / 'data').write_text('good')
+        admin.shutil.rmtree(work / '.next')
+        with self.assertRaises(RuntimeError):
+            with admin.next_build_cache(work, cache):
+                self.assertEqual((local / 'data').read_text(), 'good')
+                (local / 'data').write_text('failed')
+                raise RuntimeError('build failed')
+        admin.shutil.rmtree(work / '.next')
+        with admin.next_build_cache(work, cache):
+            self.assertEqual((local / 'data').read_text(), 'good')
+        admin.shutil.rmtree(work / '.next')
+        lockfile.write_text('different dependencies')
+        with admin.next_build_cache(work, cache):
+            self.assertFalse(local.exists())
+
     def test_names_and_releases_refuse_path_injection(self):
         for name in ('../bob', 'Alice', '-root', 'a b', 'a\nb', 'x' * 25):
             with self.assertRaises(ValueError):

@@ -71,10 +71,11 @@ def main():
             '--mount', f'type=bind,source={bundle},target=/input/source.bundle,readonly',
             '--mount', f'type=bind,source={tools},target=/tools,readonly',
             '--mount', f'type=bind,source={exported},target=/export',
+            '--mount', 'type=volume,source=pi-web-build-cache-node22.19.0-amd64,target=/cache',
             IMAGE, 'bash', '-euc', '''
 umask 077
 python3 -m unittest discover -s /tools -p 'test_admin.py' -v
-python3 /tools/pi-web-admin.py build --repo /input/source.bundle --commit "$1" --output /tmp/artifacts
+python3 /tools/pi-web-admin.py build --repo /input/source.bundle --commit "$1" --output /tmp/artifacts --npm-cache /cache/npm --next-cache /cache/next
 releases=(/tmp/artifacts/*)
 [ "${#releases[@]}" -eq 1 ]
 tar -czf /export/pi-web-linux-x64.tar.gz -C "${releases[0]}" .

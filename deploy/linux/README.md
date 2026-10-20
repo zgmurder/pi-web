@@ -81,6 +81,8 @@ python deploy/linux/build-release.py --release-repo E:/releases/pi-web-releases
 
 生产服务器在私有暂存目录 `git pull --ff-only` 后校验 `sha256sum -c SHA256SUMS`，将可信包解压至私有目录，再按下文执行 `publish` / `deploy`。不要在运行目录直接 pull。认证交给 SSH 密钥或交互提示，不在脚本中保存密码。此流程不包含自动生产更新。
 
+后续构建复用 Docker 命名卷 `pi-web-build-cache-node22.19.0-amd64` 中的 npm 下载缓存和 Next 编译缓存，后者按锁文件 SHA-256 分目录并加锁，只在检查及构建成功后更新。镜像层也由 Docker 复用。仍执行干净的 `npm ci`、全量测试、lint 和构建，不复用旧发布目录或开发 `.next`。缓存不含生产凭据、不进入发布包，仅供可信构建任务使用。首次启用需要暖缓存；依赖变化会触发新的编译缓存，实际提速需测量，不能承诺秒级发布。升级 Node 或平台需同步更换缓存卷名。缓存疑似损坏时，在无构建运行时删除该命名卷再重建。
+
 入口测试（无需 Docker）：`python -m unittest discover -s deploy/linux -p test_build_release.py -v`。
 
 ### 已有 Linux 构建账号

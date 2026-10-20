@@ -120,6 +120,29 @@ def normalize_permissions(root):
                 path.chmod(0o755 if path.stat().st_mode & 0o111 else 0o644)
 
 
+@contextlib.contextmanager
+def next_build_cache(work, cache_root):
+    if not cache_root:
+        yield
+        return
+    key = hashlib.sha256((work / 'package-lock.json').read_bytes()).hexdigest()
+    cache = Path(cache_root).resolve() / key
+    cache.mkdir(parents=True, exist_ok=True)
+    with (cache / 'build.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        saved = cache / 'next'
+        local = work / '.next/cache'
+        if saved.is_dir():
+            log('Restoring Next compilation cache')
+            shutil.copytree(saved, local, dirs_exist_ok=True)
+        else:
+            log('Next compilation cache cold; warming on this build')
+        yield
+        if local.is_dir():
+            shutil.copytree(local, saved, dirs_exist_ok=True)
+            log('Saved Next compilation cache (not included in release)')
+
+
 def build(args):
     if os.geteuid() == 0:
         raise ValueError('Build as a dedicated unprivileged builder, never as root')
@@ -149,12 +172,13 @@ def build(args):
         if args.offline:
             npm.append('--offline')
         run(*npm, cwd=work, env=env)
-        for command in ([NODE, 'node_modules/typescript/bin/tsc', '--noEmit'],
-                        ['npm', 'test'], ['npm', 'run', 'lint'], ['npm', 'run', 'build']):
-            log('Running ' + ' '.join(command))
-            # Unit tests mock update commands; offline mode would bypass those assertions.
-            command_env = {**env, 'PI_OFFLINE': '0'} if command == ['npm', 'test'] else env
-            run(*command, cwd=work, env=command_env)
+        with next_build_cache(work, args.next_cache):
+            for command in ([NODE, 'node_modules/typescript/bin/tsc', '--noEmit'],
+                            ['npm', 'test'], ['npm', 'run', 'lint'], ['npm', 'run', 'build']):
+                log('Running ' + ' '.join(command))
+                # Unit tests mock update commands; offline mode would bypass those assertions.
+                command_env = {**env, 'PI_OFFLINE': '0'} if command == ['npm', 'test'] else env
+                run(*command, cwd=work, env=command_env)
         release = commit[:12] + '-' + datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S') + '-' + secrets.token_hex(4)
         target = destination / release
         pending = destination / ('.' + release)
@@ -419,6 +443,7 @@ def parser():
     p.add_argument('--commit', required=True)
     p.add_argument('--output', required=True)
     p.add_argument('--npm-cache')
+    p.add_argument('--next-cache', help='Trusted compilation cache; partition by platform and Node version')
     p.add_argument('--registry')
     p.add_argument('--offline', action='store_true')
     p = sub.add_parser('publish', help='Import a reviewed build directory as root')
