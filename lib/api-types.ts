@@ -60,16 +60,21 @@ export interface LocalMarketPlugin {
   name: string;
   description?: string;
   version?: string;
+  detailUrl?: string;
 }
 
 export interface LocalMarketSkill {
   id: string;
   name: string;
+  displayName?: string;
   description: string;
+  version?: string;
+  detailUrl?: string;
 }
 
 export interface LocalMarketCatalog {
   root: string;
+  websiteUrl?: string;
   plugins: LocalMarketPlugin[];
   skills: LocalMarketSkill[];
   diagnostics: string[];

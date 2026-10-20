@@ -12,6 +12,7 @@ import {
 import { getAllowedFileRoots, isExistingFilePathAllowed } from "@/lib/file-access";
 import { hasJsonContentType, isApiRequestAllowed } from "@/lib/request-security";
 import { getLocalMarketPluginPath } from "@/lib/local-market";
+import { remoteMarketUrl } from "@/lib/remote-market";
 import { getProjectTrustStatus } from "@/lib/project-trust";
 import { isPluginSourceCheckable } from "@/lib/plugin-updates";
 import { invalidateModelRuntimeWithExtensions } from "@/lib/model-runtime";
@@ -489,6 +490,16 @@ export async function POST(req: Request) {
       if (body.marketId?.trim()) {
         source = await getLocalMarketPluginPath(body.marketId.trim());
         if (!source) return NextResponse.json({ error: "Market plugin not found" }, { status: 404 });
+        if (remoteMarketUrl()) {
+          const incoming = readPackageMetadata(source);
+          const duplicate = packageManager.listConfiguredPackages().find((pkg) =>
+            toPluginScope(pkg.scope) === scope && pkg.source !== source && incoming.packageName
+            && readPackageMetadata(pkg.installedPath).packageName === incoming.packageName);
+          if (duplicate) return NextResponse.json(
+            { error: "This plugin is already configured from another source or version. Remove its existing entry before installing the market version." },
+            { status: 409 },
+          );
+        }
       }
       if (!source) return NextResponse.json({ error: "source required" }, { status: 400 });
       await packageManager.installAndPersist(source, { local });

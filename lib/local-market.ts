@@ -3,6 +3,7 @@ import path from "node:path";
 import { parseFrontmatter } from "./frontmatter";
 import { readRegularFileText } from "./regular-file";
 import type { LocalMarketCatalog, LocalMarketPlugin, LocalMarketSkill } from "./api-types";
+import { remoteMarketUrl, readRemoteMarket, remoteMarketSource } from "./remote-market";
 
 type MarketPluginSource = LocalMarketPlugin & { source: string };
 type MarketSkillSource = LocalMarketSkill & { source: string };
@@ -73,6 +74,7 @@ async function readSkills(root: string, diagnostics: string[]): Promise<MarketSk
 }
 
 export async function readLocalMarket(): Promise<LocalMarketCatalog> {
+  if (remoteMarketUrl()) return readRemoteMarket();
   const root = getLocalMarketRoot();
   const diagnostics: string[] = [];
   const [plugins, skills] = await Promise.all([
@@ -109,22 +111,35 @@ async function resolveLocalMarketSkill(id: string): Promise<MarketSkillSource | 
 }
 
 export async function getLocalMarketPluginPath(id: string): Promise<string | undefined> {
+  if (remoteMarketUrl()) return remoteMarketSource("plugin", id);
   return (await resolveLocalMarketPlugin(id))?.source;
 }
 
 export async function installLocalMarketSkill(id: string, destinationRoot: string): Promise<string> {
-  const skill = await resolveLocalMarketSkill(id);
+  let skill: MarketSkillSource | undefined;
+  if (remoteMarketUrl()) {
+    const source = await remoteMarketSource("skill", id);
+    const raw = readRegularFileText(path.join(source, "SKILL.md"), MANIFEST_MAX_BYTES);
+    const data = raw ? parseFrontmatter(raw).data : undefined;
+    const name = text(data?.name);
+    const description = text(data?.description);
+    if (!name || !SKILL_NAME_RE.test(name) || name.length > 64 || !description || description.length > 1024) {
+      throw new Error("Invalid market skill manifest");
+    }
+    skill = { id, name, description, source };
+  } else {
+    skill = await resolveLocalMarketSkill(id);
+  }
   if (!skill) throw new Error("Market skill not found");
 
   const destination = path.join(destinationRoot, skill.name);
-  try {
-    await lstat(destination);
-    throw new Error(`Skill already exists: ${destination}`);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-  }
-
   await mkdir(destinationRoot, { recursive: true });
+  try {
+    await mkdir(destination);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") throw new Error(`Skill already exists: ${destination}`);
+    throw error;
+  }
   try {
     await cp(skill.source, destination, {
       recursive: true,

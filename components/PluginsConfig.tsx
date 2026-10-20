@@ -256,6 +256,7 @@ function AddPluginPanel({
   onSourceChange,
   marketPlugins,
   marketLoading,
+  marketUrl,
   onScopeChange,
   onInstall,
   onInstallMarket,
@@ -268,6 +269,7 @@ function AddPluginPanel({
   actionError: string | null;
   marketPlugins: LocalMarketPlugin[];
   marketLoading: boolean;
+  marketUrl?: string;
   onSourceChange: (value: string) => void;
   onScopeChange: (scope: PluginScope) => void;
   onInstall: () => void;
@@ -278,7 +280,7 @@ function AddPluginPanel({
   return (
     <ConfigAddSourcePanel
       title={t("i18n.addPlugin")}
-      catalogs={[]}
+      catalogs={marketUrl ? [{ label: t("market.open"), href: marketUrl }] : []}
       target={
         <ConfigSaveTarget
           value={scope}
@@ -321,7 +323,7 @@ function AddPluginPanel({
       ) : marketPlugins.map((plugin) => (
         <div key={plugin.id} style={{ display: "flex", gap: 12, alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{plugin.name}</div>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>{plugin.detailUrl ? <a href={plugin.detailUrl} target="_blank" rel="noopener noreferrer">{plugin.name}</a> : plugin.name}</div>
             {plugin.description && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3 }}>{plugin.description}</div>}
             {plugin.version && <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 3 }}>v{plugin.version}</div>}
           </div>
@@ -601,6 +603,7 @@ export function PluginsConfig({
   const [installScope, setInstallScope] = useState<PluginScope>("global");
   const [marketPlugins, setMarketPlugins] = useState<LocalMarketPlugin[]>([]);
   const [marketLoading, setMarketLoading] = useState(false);
+  const [marketUrl, setMarketUrl] = useState<string>();
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -663,9 +666,10 @@ export function PluginsConfig({
     setMarketLoading(true);
     fetch("/api/market")
       .then(async (response) => {
-        const result = await response.json() as { plugins?: LocalMarketPlugin[]; error?: string };
+        const result = await response.json() as { plugins?: LocalMarketPlugin[]; websiteUrl?: string; error?: string };
         if (!response.ok || result.error) throw new Error(result.error ?? `HTTP ${response.status}`);
         setMarketPlugins(result.plugins ?? []);
+        setMarketUrl(result.websiteUrl);
       })
       .catch((error) => setActionError(error instanceof Error ? error.message : String(error)))
       .finally(() => setMarketLoading(false));
@@ -1069,6 +1073,7 @@ export function PluginsConfig({
                 actionError={actionError}
                 marketPlugins={marketPlugins}
                 marketLoading={marketLoading}
+                marketUrl={marketUrl}
                 onSourceChange={setInstallSource}
                 onScopeChange={setInstallScope}
                 onInstall={installPlugin}

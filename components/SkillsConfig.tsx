@@ -372,6 +372,7 @@ function AddSkillPanel({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SkillSearchResult[]>([]);
   const [marketSkills, setMarketSkills] = useState<LocalMarketSkill[]>([]);
+  const [marketUrl, setMarketUrl] = useState<string>();
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [installing, setInstalling] = useState<string | null>(null);
@@ -386,9 +387,10 @@ function AddSkillPanel({
     inputRef.current?.focus();
     fetch("/api/market")
       .then(async (response) => {
-        const result = await response.json() as { skills?: LocalMarketSkill[]; error?: string };
+        const result = await response.json() as { skills?: LocalMarketSkill[]; websiteUrl?: string; error?: string };
         if (!response.ok || result.error) throw new Error(result.error ?? `HTTP ${response.status}`);
         setMarketSkills(result.skills ?? []);
+        setMarketUrl(result.websiteUrl);
       })
       .catch((error) => setSearchError(error instanceof Error ? error.message : String(error)));
   }, []);
@@ -467,7 +469,7 @@ function AddSkillPanel({
       >
         <ConfigAddSourceHeading
           title={t("i18n.addSkill")}
-          catalogs={[]}
+          catalogs={marketUrl ? [{ label: t("market.open"), href: marketUrl }] : []}
           target={
             <ConfigSaveTarget
               value={scope}
@@ -538,7 +540,8 @@ function AddSkillPanel({
             return (
               <div key={skill.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{skill.name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{skill.detailUrl ? <a href={skill.detailUrl} target="_blank" rel="noopener noreferrer">{skill.displayName ?? skill.name}</a> : skill.name}</div>
+                  {skill.version && <div style={{ fontSize: 11, color: "var(--text-dim)" }}>v{skill.version}</div>}
                   <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3 }}>{skill.description}</div>
                 </div>
                 <ConfigButton
