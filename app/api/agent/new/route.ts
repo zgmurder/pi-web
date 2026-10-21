@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { allowFileRoot } from "@/lib/file-access";
 import { invalidateSessionListCache } from "@/lib/session-reader";
 import { startRpcSession } from "@/lib/rpc-manager";
+import { assertInstancePath, InstancePathError } from "@/lib/instance-root";
 
 const THINKING_LEVELS = new Set<ThinkingLevel>(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
           : {}),
       }, { status: 400 });
     }
+    assertInstancePath(cwd);
     if (!existsSync(cwd)) {
       return NextResponse.json({
         error: `Directory does not exist: ${cwd}`,
@@ -102,6 +104,6 @@ export async function POST(req: Request) {
       ...(commandType === "prompt" && !promptAccepted
         ? { code: "prompt_rejected", accepted: false }
         : {}),
-    }, { status: 500 });
+    }, { status: error instanceof InstancePathError ? 403 : 500 });
   }
 }

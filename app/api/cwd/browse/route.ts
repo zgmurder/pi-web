@@ -30,7 +30,10 @@ export async function GET(request: NextRequest) {
     let resolved: string;
     try {
       resolved = await resolveDirectory(candidate);
-    } catch {
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EACCES") {
+        return NextResponse.json({ error: String(error) }, { status: 403 });
+      }
       return NextResponse.json({ error: "Directory does not exist" }, { status: 404 });
     }
 

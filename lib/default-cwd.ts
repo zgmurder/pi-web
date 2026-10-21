@@ -1,7 +1,8 @@
 import { homedir } from "os";
 import path from "path";
+import { getInstanceRoot } from "./instance-root";
 
-// "Use default directory" opens a fresh folder per day, ~/pi-cwd/<YYYYMMDD>.
+// Daily scratch folder: <instance>/workspace/<YYYYMMDD>, or ~/pi-cwd in development.
 // The date keeps a first-time user from landing in a folder that already holds
 // their own data, and doubles as a daily scratch cwd.
 const DEFAULT_CWD_PARENT = "pi-cwd";
@@ -15,5 +16,6 @@ export function localDateStamp(now = new Date()): string {
 }
 
 export function defaultCwdPath(now = new Date(), home = homedir()): string {
-  return path.join(home, DEFAULT_CWD_PARENT, localDateStamp(now));
+  const root = getInstanceRoot();
+  return path.join(root || home, root ? "workspace" : DEFAULT_CWD_PARENT, localDateStamp(now));
 }

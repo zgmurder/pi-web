@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { createJiti } from "jiti";
+import { createHash } from "node:crypto";
 
 const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "pi-web-upload-route-")));
 const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
@@ -27,6 +28,39 @@ function fixture() {
   const destination = path.join(directory, "important.txt");
   fs.writeFileSync(destination, "original contents");
   return { directory, destination };
+}
+
+for (const [sizeMiB, declaredLength] of [[26, true], [129, false]]) {
+  test(`uploads ${sizeMiB} MiB intact without former size caps (Content-Length: ${declaredLength})`, async () => {
+    const { directory } = fixture();
+    const encoded = encodeFilePathForApi(directory);
+    const chunk = Buffer.alloc(1024 * 1024, 0x61);
+    const parts = Array(sizeMiB).fill(chunk);
+    const expected = createHash("sha256");
+    for (const part of parts) expected.update(part);
+    const form = new FormData();
+    form.append("files", new File(parts, "large.bin"));
+    form.append("files", new File(["small companion"], "small.txt"));
+    const request = new NextRequest(`http://localhost/api/files/${encoded}?type=upload`, {
+      method: "POST", headers: { host: "localhost" }, body: form,
+    });
+    if (declaredLength) {
+      // Native FormData has no Content-Length; compute it without buffering a second body.
+      let length = 0;
+      const serialized = new Request("http://localhost", { method: "POST", body: form });
+      for await (const bytes of serialized.body) length += bytes.byteLength;
+      request.headers.set("content-length", String(length));
+    }
+    const response = await POST(request, { params: Promise.resolve({ path: encoded.split("/").map(decodeURIComponent) }) });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { uploaded: ["large.bin", "small.txt"], skipped: [], errors: [] });
+    const destination = path.join(directory, "large.bin");
+    assert.equal(fs.statSync(destination).size, sizeMiB * 1024 * 1024);
+    const actual = createHash("sha256");
+    for await (const bytes of fs.createReadStream(destination)) actual.update(bytes);
+    assert.equal(actual.digest("hex"), expected.digest("hex"));
+    assert.equal(fs.readFileSync(path.join(directory, "small.txt"), "utf8"), "small companion");
+  });
 }
 
 async function upload(directory, strategy = "overwrite", names = ["important.txt"]) {

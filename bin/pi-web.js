@@ -70,7 +70,7 @@ function exitWhenIdle(code) {
 
 function startServer({ port, hostname, openBrowser }) {
 
-  const pkgDir = path.join(__dirname, "..");
+  const pkgDir = fs.realpathSync(path.join(__dirname, ".."));
   const nextDir = path.join(pkgDir, ".next");
 
   // Resolve next's CLI entry directly to avoid relying on .bin symlinks (which
@@ -124,7 +124,7 @@ function startServer({ port, hostname, openBrowser }) {
   const child = spawn(process.execPath, getNextNodeArgs(nextBin, nextArgs), {
     cwd: pkgDir,
     stdio: ["inherit", "pipe", "inherit"],
-    env: { ...process.env, PI_WEB_HOSTNAME: hostname },
+    env: { ...process.env, PI_WEB_HOSTNAME: hostname, PI_WEB_INSTANCE_ROOT: pkgDir },
   });
   wireChildProcessLifecycle(child);
 

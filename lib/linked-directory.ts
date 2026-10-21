@@ -3,6 +3,7 @@ import os from "os";
 import path from "path";
 import { isExistingPathWithinRoots, isPathWithinRoots, resolveRealRoots } from "./path-security";
 import { samePath } from "./paths";
+import { isInstancePathAllowed } from "./instance-root";
 
 /**
  * The canonical target of a directory link (a symlink, or a junction on
@@ -83,6 +84,9 @@ export function checkLinkedDirectoryApproval(
 ): LinkedDirectoryApproval {
   // Collapse `..` first so the lexical check and the filesystem calls agree:
   // the filesystem resolves `root/link/..` from the link's target instead.
+  if (!isInstancePathAllowed(requestedPath)) {
+    return { ok: false, status: 403, error: "Access denied" };
+  }
   const linkPath = path.resolve(requestedPath);
   if (
     !isPathWithinRoots(linkPath, roots)

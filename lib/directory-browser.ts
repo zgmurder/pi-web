@@ -1,6 +1,7 @@
 import { mkdir, readdir, realpath, stat } from "fs/promises";
 import { homedir } from "os";
 import path from "path";
+import { assertInstancePath, getInstanceRoot, isInstancePathAllowed } from "./instance-root";
 
 export interface BrowsableDirectory {
   name: string;
@@ -11,11 +12,11 @@ export function shouldShowWindowsDrivePicker(
   directory?: string,
   platform: NodeJS.Platform = process.platform,
 ): boolean {
-  return platform === "win32" && !directory;
+  return !getInstanceRoot() && platform === "win32" && !directory;
 }
 
 export function getBrowseStartDirectory(directory?: string): string {
-  return directory || homedir();
+  return directory || getInstanceRoot() || homedir();
 }
 
 export function getWindowsDriveCandidates(): BrowsableDirectory[] {
@@ -39,9 +40,11 @@ export async function listWindowsDrives(): Promise<BrowsableDirectory[]> {
 }
 
 export function normalizeDirectory(directory: string): string {
-  if (directory === "~") return homedir();
-  if (directory.startsWith("~/")) return path.resolve(homedir(), directory.slice(2));
-  return path.resolve(directory);
+  const home = getInstanceRoot() || homedir();
+  const expanded = directory === "~" ? home
+    : directory.startsWith("~/") ? `${home}/${directory.slice(2)}` : directory;
+  assertInstancePath(expanded, true);
+  return path.resolve(expanded);
 }
 
 export function getParentDirectory(directory: string): string | null {
@@ -50,11 +53,13 @@ export function getParentDirectory(directory: string): string | null {
     : path.posix;
   const normalized = pathApi.normalize(directory);
   const parent = pathApi.dirname(normalized);
-  return parent === normalized ? null : parent;
+  return parent === normalized || !isInstancePathAllowed(parent) ? null : parent;
 }
 
 export async function resolveDirectory(directory: string): Promise<string> {
-  return realpath(normalizeDirectory(directory));
+  const normalized = normalizeDirectory(directory);
+  assertInstancePath(normalized);
+  return realpath(normalized);
 }
 
 export function isValidDirectoryName(name: string): boolean {
@@ -77,9 +82,11 @@ export async function createDirectory(parentDirectory: string, name: string): Pr
 }
 
 export async function listDirectories(directory: string): Promise<BrowsableDirectory[]> {
+  assertInstancePath(directory);
   const entries = await readdir(directory, { withFileTypes: true });
   // 忽略损坏、不可访问或不指向目录的符号链接。
   const candidates = await Promise.all(entries.map(async (entry) => {
+    if (!isInstancePathAllowed(path.join(directory, entry.name))) return null;
     if (entry.isDirectory()) {
       return { name: entry.name, path: path.join(directory, entry.name) };
     }

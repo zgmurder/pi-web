@@ -1,6 +1,7 @@
 import { getAdditionalAllowedRoots, normalizeSlashes } from "./allowed-roots";
 import { isExistingPathWithinRoots, isPathWithinRoots } from "./path-security";
 import { listAllSessions } from "./session-reader";
+import { getInstanceRoot, isInstancePathAllowed } from "./instance-root";
 export { allowFileRoot, normalizeSlashes } from "./allowed-roots";
 export { isWindowsAbsolutePath } from "./paths";
 
@@ -15,6 +16,8 @@ declare global {
 const ALLOWED_ROOTS_TTL_MS = 5_000;
 
 export async function getAllowedFileRoots(): Promise<Set<string>> {
+  const instanceRoot = getInstanceRoot();
+  if (instanceRoot) return new Set([instanceRoot]);
   const now = Date.now();
   const cached = globalThis.__piAllowedRootsCache;
   if (cached && cached.expiresAt > now) return cached.roots;
@@ -36,10 +39,10 @@ export async function getAllowedFileRoots(): Promise<Set<string>> {
 
 /** Authorize a path lexically, without touching the filesystem. */
 export function isFilePathAllowed(target: string, allowedRoots: Set<string>): boolean {
-  return isPathWithinRoots(target, allowedRoots);
+  return isInstancePathAllowed(target, true) && isPathWithinRoots(target, allowedRoots);
 }
 
 /** Authorize an existing path after resolving symbolic links. */
 export function isExistingFilePathAllowed(target: string, allowedRoots: Set<string>): boolean {
-  return isExistingPathWithinRoots(target, allowedRoots);
+  return isInstancePathAllowed(target) && isExistingPathWithinRoots(target, allowedRoots);
 }

@@ -1,16 +1,10 @@
 import { NextResponse } from "next/server";
 import { statSync, type Stats } from "fs";
-import { homedir } from "os";
-import { isAbsolute, resolve } from "path";
+import { normalizeDirectory } from "@/lib/directory-browser";
+import { assertInstancePath } from "@/lib/instance-root";
 import { allowFileRoot } from "@/lib/file-access";
 import { projectIdentityKey } from "@/lib/project-identity";
 import { resolveProject } from "@/lib/worktree";
-
-function normalizeCwd(cwd: string): string {
-  if (cwd === "~") return homedir();
-  if (cwd.startsWith("~/")) return resolve(homedir(), cwd.slice(2));
-  return isAbsolute(cwd) ? cwd : resolve(cwd);
-}
 
 // POST /api/cwd/validate  body: { cwd: string }
 // Validates a candidate workspace before the UI selects it.
@@ -23,7 +17,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Path is required" }, { status: 400 });
     }
 
-    const normalizedCwd = normalizeCwd(cwd);
+    const normalizedCwd = normalizeDirectory(cwd);
+    assertInstancePath(normalizedCwd);
     let stat: Stats;
     try {
       stat = statSync(normalizedCwd);
@@ -44,6 +39,6 @@ export async function POST(req: Request) {
       projectKey: projectIdentityKey(project.projectRoot),
     });
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    return NextResponse.json({ error: String(error) }, { status: (error as NodeJS.ErrnoException).code === "EACCES" ? 403 : 500 });
   }
 }

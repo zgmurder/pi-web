@@ -11,7 +11,8 @@ server {
     server_name alice.pi.internal;
     ssl_certificate /etc/nginx/tls/alice.pi.internal.crt;
     ssl_certificate_key /etc/nginx/tls/alice.pi.internal.key;
-    client_max_body_size 128m;
+    # No upload size cap; actual capacity still depends on memory and disk.
+    client_max_body_size 0;
 
     location / {
         proxy_pass http://127.0.0.1:30151;

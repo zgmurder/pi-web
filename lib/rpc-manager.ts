@@ -6,6 +6,7 @@ import { existsSync, realpathSync, writeFileSync } from "fs";
 import { resolve } from "path";
 import { isDeepStrictEqual } from "util";
 import { validateAgentImages } from "./image-attachments";
+import { assertInstancePath } from "./instance-root";
 import { invalidateModelsCache } from "./models-cache";
 import { invalidateModelRuntimeWithExtensions } from "./model-runtime";
 import { resolveVisibleModels, selectInitialModelScope } from "./model-scope";
@@ -845,6 +846,9 @@ export class AgentSessionWrapper {
       // run there would reach the model only for its tools to fail (and `write`
       // to recreate the folder). The pi CLI does not resume such a session
       // either; refuse as /api/agent/new does. (A `!` command already refuses.)
+      if (type === "prompt" || type === "steer" || type === "follow_up" || type === "bash") {
+        assertInstancePath(this.cwd);
+      }
       if (type === "prompt" && !existsSync(this.cwd)) {
         throw new Error(`Directory does not exist: ${this.cwd}`);
       }
@@ -2487,7 +2491,10 @@ export async function startRpcSession(
   const locks = getLocks();
 
   const existing = registry.get(sessionId);
-  if (existing?.isAlive()) return { session: existing, realSessionId: sessionId };
+  if (existing?.isAlive()) {
+    assertInstancePath(existing.cwd);
+    return { session: existing, realSessionId: sessionId };
+  }
 
   const inflight = locks.get(sessionId);
   if (inflight) return inflight;
@@ -2508,9 +2515,11 @@ export async function startRpcSession(
     sessionManager = SessionManager.open(sessionFile, undefined);
   } else {
     if (!cwd) throw new Error("cwd is required for a new session");
+    assertInstancePath(cwd);
     sessionManager = SessionManager.create(cwd, undefined);
   }
   const sessionCwd = sessionManager.getCwd();
+  assertInstancePath(sessionCwd);
   const sessionEntries = sessionManager.getEntries() as unknown as SessionEntry[];
   const hasPersistedSubagentSnapshot = sessionFile && hasSubagentResourceSnapshot(sessionEntries);
   const subagentResources = sessionFile

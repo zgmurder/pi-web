@@ -4,6 +4,7 @@ import { basename, dirname, join, resolve } from "path";
 import { promisify } from "util";
 import { allowFileRoot } from "./allowed-roots";
 import { samePath, toNativePath } from "./paths";
+import { assertInstancePath } from "./instance-root";
 
 const execFileAsync = promisify(execFile);
 
@@ -306,9 +307,12 @@ export async function addWorktree(cwd: string, branch: string): Promise<{ path: 
   const dirName = sanitizeBranchForDir(trimmed);
   if (!dirName) throw new Error(`Invalid branch name: ${branch}`);
 
+  assertInstancePath(cwd);
   const repoRoot = await getRepoRoot(cwd);
+  assertInstancePath(repoRoot);
   const baseDir = `${resolve(repoRoot)}-worktrees`;
   const worktreePath = join(baseDir, dirName);
+  assertInstancePath(worktreePath, true);
   if (existsSync(worktreePath)) {
     throw new Error(`Directory already exists: ${worktreePath}`);
   }
@@ -354,6 +358,8 @@ export async function addWorktree(cwd: string, branch: string): Promise<{ path: 
 }
 
 export async function removeWorktree(cwd: string, worktreePath: string, force = false): Promise<void> {
+  assertInstancePath(cwd);
+  assertInstancePath(worktreePath);
   const worktrees = await listWorktrees(cwd);
   // Git reports worktrees by their real path; the caller's may run through a link
   // (macOS's /var and /tmp are links to /private/...).

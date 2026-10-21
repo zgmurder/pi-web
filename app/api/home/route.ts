@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { homedir } from "os";
+import { getBrowseStartDirectory } from "@/lib/directory-browser";
 
 export async function GET() {
-  return NextResponse.json({ home: homedir() });
+  return NextResponse.json({ home: getBrowseStartDirectory() });
 }
