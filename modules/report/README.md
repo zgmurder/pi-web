@@ -50,6 +50,8 @@
 REPORT_API_URL=http://127.0.0.1:8001
 ```
 
+登录按钮下显示浏览器实际请求的 `POST <当前页面源地址>/api/web-auth` 和服务端运行时配置对应的 `POST <Report源地址>/api/v1/auth/login`，便于内网排障。地址为可复制文本，不代表连通性验证；无效配置仅提示错误，不回显原始配置或凭据。后端地址在未登录时可见。
+
 填写源地址，不包含 `/api/v1`。生产修改环境变量后重启对应实例；Docker 内的 `127.0.0.1` 指向容器自身，分容器部署请使用 Report 服务名。
 
 登录调用 `POST /api/v1/auth/login`，每个受保护请求调用 `GET /api/v1/auth/me`。Token 仅放在 HttpOnly 会话 Cookie，不返回浏览器 JS，不放 localStorage，不需要复制 Report JWT 密钥。HTTPS 自动设置 Secure；非本机访问应使用 HTTPS。Report 不可用时拒绝访问，不回退到免登录。

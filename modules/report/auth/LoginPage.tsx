@@ -1,12 +1,17 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useSyncExternalStore, type FormEvent } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import { safeLoginDestination } from "@/lib/login-destination";
 import styles from "./auth.module.css";
 
-export function ReportLoginPage() {
+const subscribe = () => () => {};
+const browserLoginUrl = () => new URL("/api/web-auth", window.location.origin).href;
+const serverLoginUrl = () => "/api/web-auth";
+
+export function ReportLoginPage({ backendLoginUrl }: { backendLoginUrl: string | null }) {
   useTheme();
+  const loginUrl = useSyncExternalStore(subscribe, browserLoginUrl, serverLoginUrl);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -57,6 +62,10 @@ export function ReportLoginPage() {
               autoComplete="current-password" maxLength={128} required disabled={busy} />
           </div>
           <button type="submit" disabled={busy}>{busy ? "登录中…" : "登录"}</button>
+          <div className={styles.endpoints} aria-label="登录接口信息">
+            <p>登录接口：<code>POST {loginUrl}</code></p>
+            <p>认证后端：{backendLoginUrl ? <code>POST {backendLoginUrl}</code> : "REPORT_API_URL 配置无效，请联系管理员"}</p>
+          </div>
           <p className="web-login-error" role="alert" aria-live="polite">{error}</p>
         </form>
       </div>

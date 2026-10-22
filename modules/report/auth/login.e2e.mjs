@@ -17,13 +17,17 @@ try {
   assert.equal(new URL(page.url()).pathname, "/login");
   assert.equal(new URL(page.url()).searchParams.get("next"), "/report/police?keyword=test");
   assert.equal(await page.getByRole("button", { name: "登录", exact: true }).isDisabled(), false);
+  const endpoints = page.getByLabel("登录接口信息", { exact: true });
+  await endpoints.getByText(`POST ${new URL("/api/web-auth", base).href}`, { exact: true }).waitFor();
+  const backend = process.env.REPORT_TEST_BACKEND_ORIGIN || "http://127.0.0.1:8001";
+  await endpoints.getByText(`POST ${new URL("/api/v1/auth/login", backend).href}`, { exact: true }).waitFor();
   for (const width of [1280, 390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     const bounds = await page.getByLabel("密码", { exact: true }).boundingBox();
     assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= width);
   }
-  console.log("PASS anonymous API refusal, business redirect and Chinese login on an English browser; mobile layout");
+  console.log("PASS anonymous API refusal, business redirect and Chinese login and endpoint addresses on an English browser; mobile layout");
 
   let status = 401;
   let payload;

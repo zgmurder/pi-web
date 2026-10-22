@@ -1,6 +1,9 @@
 .form { display: grid; gap: 10px; }
 .form label { color: var(--text-muted); font-size: 14px; }
 .form button { justify-content: center; margin-top: 10px; min-height: 42px; transition: background 150ms; }
+.endpoints { min-width: 0; color: var(--text-muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.endpoints p { margin: 0; }
+.endpoints code { font-family: var(--font-mono); }
 .account { position: relative; flex-shrink: 0; height: 100%; }
 .user, .account button { box-sizing: border-box; padding: 0 12px; border: 0; border-radius: 0; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; transition: background 150ms, color 150ms; }
 .user { display: flex; align-items: center; gap: 8px; height: 100%; border-right: 1px solid var(--border); list-style: none; }
