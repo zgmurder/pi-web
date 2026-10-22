@@ -29,7 +29,6 @@ import { useDragDrop } from "@/hooks/useDragDrop";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useScrollbarVisibility } from "@/hooks/useScrollbarVisibility";
 import type { SessionStatsInfo } from "@/lib/pi-types";
-import type { AppUpdateResponse } from "@/lib/api-types";
 import type { ToolEntry } from "@/lib/tool-presets";
 import type { SettingsSection } from "@/lib/settings-navigation";
 import { getTranscriptNotices, summarizeCacheMisses, type CacheMissSummary } from "@/lib/transcript-notices";
@@ -94,74 +93,6 @@ interface Props {
 }
 const CHAT_MINIMAP_WIDTH = 36;
 const CHAT_COLUMN_PADDING = 16;
-
-// One update check per page. Every fresh composer mounts the header again
-// (each move of the new-session bar does), and a link that turned up late
-// each time would lengthen the versions line under the reader's eyes; from
-// the second header on it is there in the first paint.
-let appUpdateCheck: Promise<AppUpdateResponse | null> | null = null;
-let appUpdateFound: AppUpdateResponse | null = null;
-
-function checkAppUpdate(): Promise<AppUpdateResponse | null> {
-  appUpdateCheck ??= fetch("/api/app-update")
-    .then(async (response) => {
-      if (!response.ok) return null;
-      const result = await response.json() as AppUpdateResponse;
-      return result.updateAvailable && result.latestVersion && result.releaseUrl ? result : null;
-    })
-    .then((result) => {
-      appUpdateFound = result;
-      return result;
-    })
-    .catch(() => {
-      // Update checks are best-effort and must not interrupt a new session;
-      // a later header asks again.
-      appUpdateCheck = null;
-      return null;
-    });
-  return appUpdateCheck;
-}
-
-function NewSessionUpdateLink({
-  label,
-}: {
-  label: (version: string) => string;
-}) {
-  const [update, setUpdate] = useState<AppUpdateResponse | null>(() => appUpdateFound);
-
-  useEffect(() => {
-    if (appUpdateFound) return;
-    let cancelled = false;
-    void checkAppUpdate().then((result) => {
-      if (!cancelled && result) setUpdate(result);
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  if (!update) return null;
-  const accessibleLabel = label(update.latestVersion);
-
-  // In the versions line, after the version in use: "→ v<latest> ↗".
-  return (
-    <>
-      <span className="new-session-meta-arrow" aria-hidden="true">→</span>
-      <a
-        className="new-session-update"
-        href={update.releaseUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        title={accessibleLabel}
-        aria-label={accessibleLabel}
-      >
-        v{update.latestVersion}
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M7 17 17 7" />
-          <path d="M7 7h10v10" />
-        </svg>
-      </a>
-    </>
-  );
-}
 
 function hasFinalAssistantAnswer(message: AgentMessage): boolean {
   if (message.role !== "assistant") return false;
@@ -1484,23 +1415,14 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
             </button>
           </div>
         )}
-        {/* The text brand and its versions line, then the
-            project/worktree row right above the composer, all on the
-            composer's left edge (.new-session-brand, .new-session-meta and
-            .new-session-context in app/globals.css; the side padding and
-            width are inline here). */}
+        {/* The brand, then the project/worktree row above the composer,
+            aligned on its left edge. */}
         {isEmptyNew && (
           <div className="new-session-hero" style={{ paddingLeft: 16, paddingRight: isMobile ? 16 : 52 }}>
             <div className="new-session-hero-inner" style={{ maxWidth: "var(--chat-content-max-width, 820px)" }}>
               <div className="new-session-brand">
                 <div className="new-session-brand-text">
-                  <span className="new-session-brand-name">AI 助手</span>
-                  <span className="new-session-meta">
-                    <span>web v{process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}</span>
-                    <NewSessionUpdateLink label={(version) => t("appUpdate.releaseNotes", { version })} />
-                    <span aria-hidden="true">·</span>
-                    <span className="new-session-meta-pi">pi v{process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}</span>
-                  </span>
+                  <span className="new-session-brand-name">警情分析助手</span>
                 </div>
               </div>
               {newSessionContextBar}

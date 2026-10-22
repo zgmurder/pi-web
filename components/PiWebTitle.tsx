@@ -6,12 +6,12 @@ import { useI18n } from "@/hooks/useI18n";
 /**
  * The sidebar's brand with the files below the sessions (its toolbar row,
  * components/SessionSidebar.tsx; the tabs layout has its tabs there), with
- * the old sidebar's easter egg: a click scrambles "Pi Web" into the versions
+ * the old sidebar's easter egg: a click scrambles the brand into the versions
  * (pi-web's, a "p", pi's) in the accent; they scramble back after
  * VERSION_SHOWN_MS, or at once on a second click.
  */
 
-export const BRAND_TEXT = "AI 助手";
+export const BRAND_TEXT = "警情分析助手";
 /** How long the versions stay, counted from the click that showed them. */
 export const VERSION_SHOWN_MS = 3000;
 /** The text settles left to right over its length times this many frames. */
@@ -31,8 +31,8 @@ export function scrambleFrameCount(target: string): number {
 /**
  * The scramble's text at `frame` (from 0): spaces kept, the characters
  * settling left to right, every one not yet settled random; `target` itself
- * from the last frame on. The length never changes, so in the brand's code
- * type neither does the width while it scrambles.
+ * from the last frame on. The length never changes, but Chinese and ASCII glyphs can have
+ * different widths while it scrambles.
  */
 export function scrambleFrame(target: string, frame: number, random: () => number = Math.random): string {
   const total = scrambleFrameCount(target);
@@ -79,8 +79,8 @@ function useScramble(target: string): string {
 
 export function PiWebTitle({ onWidthChange }: {
   /**
-   * After a commit that changed the text's length (in its code type, its
-   * width): the toolbar row fits its labels again, before that paints.
+   * After the text changes, fit the toolbar before paint; Chinese and
+   * ASCII glyphs can differ in width even at the same string length.
    */
   onWidthChange?: () => void;
 }) {
@@ -93,7 +93,7 @@ export function PiWebTitle({ onWidthChange }: {
 
   useLayoutEffect(() => {
     onWidthChange?.();
-  }, [text.length, onWidthChange]);
+  }, [text, onWidthChange]);
 
   useEffect(() => () => {
     if (revertTimerRef.current) clearTimeout(revertTimerRef.current);

@@ -704,6 +704,7 @@ export function AppShell() {
         // the just-created empty chat during that initial synchronization.
         suppressCwdBumpRef.current = true;
         const draftId = `initial:${requestedCwd}`;
+        rekeyDraft(parkedNewSessionDraftKey(data.cwd), `new:${draftId}:${data.cwd}`);
         setNewSessionDraftId(draftId);
         activeNewSessionDraftKeyRef.current = `new:${draftId}:${data.cwd}`;
         setNewSessionCwd(data.cwd);
@@ -1295,9 +1296,20 @@ export function AppShell() {
   const newSessionDraftKey = selectedSession === null && effectiveNewSessionCwd
     ? `new:${newSessionDraftId}:${effectiveNewSessionCwd}`
     : null;
+  const draftCwdRef = useRef(effectiveNewSessionCwd);
   useLayoutEffect(() => {
     activeNewSessionDraftKeyRef.current = newSessionDraftKey;
-  }, [newSessionDraftKey]);
+    draftCwdRef.current = effectiveNewSessionCwd;
+  }, [newSessionDraftKey, effectiveNewSessionCwd]);
+  useEffect(() => () => {
+    const key = activeNewSessionDraftKeyRef.current;
+    const cwd = draftCwdRef.current;
+    // Park an unsent composer when leaving the chat route, just as on a workspace switch.
+    if (key && cwd) {
+      rekeyDraft(key, parkedNewSessionDraftKey(cwd));
+      setTabOpenNewSession(cwd);
+    }
+  }, []);
 
   // The bar above a fresh composer. Only a fresh composer moves, and only
   // somewhere else: the folder in use would remount it for nothing. The
@@ -1420,7 +1432,7 @@ export function AppShell() {
   // Subagent work tabs: like files, only the active one is mounted.
   const activeAgentTab = agentTabs.find((tab) => `agent:${tab.sessionId}` === activeFileTabId) ?? null;
   const activeCwdName = activeCwd ? getFileName(activeCwd) || activeCwd : null;
-  const windowTitle = activeCwdName ? `${activeCwdName} - AI 助手` : "AI 助手";
+  const windowTitle = activeCwdName ? `${activeCwdName} - 警情分析助手` : "警情分析助手";
 
   useEffect(() => {
     const syncWindowTitle = () => {
@@ -2155,7 +2167,7 @@ export function AppShell() {
     <div style={{
       display: "flex",
       width: "100%",
-      height: "var(--app-viewport-height, 100dvh)",
+      height: "var(--workspace-content-height, var(--app-viewport-height, 100dvh))",
       paddingLeft: "env(safe-area-inset-left)",
       paddingRight: "env(safe-area-inset-right)",
       overflow: "hidden",

@@ -15,15 +15,15 @@ const notoSansMono = Noto_Sans_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI 助手",
-  description: "AI 助手",
-  applicationName: "AI 助手",
+  title: "警情分析助手",
+  description: "警情分析助手",
+  applicationName: "警情分析助手",
   manifest: "/manifest.webmanifest",
   icons: { icon: "data:," },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "AI 助手",
+    title: "警情分析助手",
   },
   formatDetection: {
     telephone: false,
