@@ -16,7 +16,7 @@ try {
   await page.getByRole("heading", { name: "警情分析助手" }).waitFor();
   assert.equal(new URL(page.url()).pathname, "/login");
   assert.equal(new URL(page.url()).searchParams.get("next"), "/report/police?keyword=test");
-  assert.equal(await page.getByRole("button", { name: "登录", exact: true }).isDisabled(), true);
+  assert.equal(await page.getByRole("button", { name: "登录", exact: true }).isDisabled(), false);
   for (const width of [1280, 390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));

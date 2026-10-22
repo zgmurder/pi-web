@@ -56,7 +56,7 @@ export function ReportLoginPage() {
             <input id="report-password" name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)}
               autoComplete="current-password" maxLength={128} required disabled={busy} />
           </div>
-          <button type="submit" disabled={busy || !username.trim() || !password}>{busy ? "登录中…" : "登录"}</button>
+          <button type="submit" disabled={busy}>{busy ? "登录中…" : "登录"}</button>
           <p className="web-login-error" role="alert" aria-live="polite">{error}</p>
         </form>
       </div>
