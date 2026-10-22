@@ -1,11 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./auth.module.css";
 
 export function SessionControls() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [username, setUsername] = useState("");
+  const accountRef = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    const closeOutside = (event: PointerEvent) => {
+      const account = accountRef.current;
+      if (account && !account.contains(event.target as Node)) account.open = false;
+    };
+    const escape = (event: KeyboardEvent) => {
+      const account = accountRef.current;
+      if (event.key === "Escape" && account?.open) {
+        event.preventDefault();
+        event.stopPropagation();
+        account.open = false;
+        account.querySelector("summary")?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", escape, true);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", escape, true);
+    };
+  }, []);
 
   useEffect(() => {
     let disposed = false;
@@ -18,8 +42,12 @@ export function SessionControls() {
         const response = await fetch("/api/web-auth", { cache: "no-store", signal: controller.signal });
         if (!response.ok) return;
         const status = await response.json();
-        if (!disposed && status.authenticated === false) {
-          window.location.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+        if (!disposed) {
+          if (status.authenticated === false) {
+            window.location.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+          } else if (status.authenticated && typeof status.user?.username === "string") {
+            setUsername(status.user.username);
+          }
         }
       } catch {
         // A temporary outage is not a logout; the server still refuses protected requests.
@@ -54,9 +82,21 @@ export function SessionControls() {
   };
 
   return (
-    <div className={styles.account}>
-      {error && <span className={styles.error} role="alert">{error}</span>}
-      <button type="button" disabled={busy} onClick={() => void logout()}>{busy ? "退出中…" : "退出登录"}</button>
-    </div>
+    <details
+      className={styles.account}
+      ref={accountRef}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+      }}
+    >
+      <summary className={styles.user} title={username || "用户信息"}>
+        <span className={styles.username}>{username || "用户信息"}</span>
+        <span className={styles.chevron} aria-hidden="true" />
+      </summary>
+      <div className={styles.dropdown}>
+        <button type="button" disabled={busy} onClick={() => void logout()}>{busy ? "退出中…" : "退出登录"}</button>
+        {error && <span className={styles.error} role="alert">{error}</span>}
+      </div>
+    </details>
   );
 }

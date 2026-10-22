@@ -1,10 +1,17 @@
 .form { display: grid; gap: 10px; }
 .form label { color: var(--text-muted); font-size: 14px; }
 .form button { justify-content: center; margin-top: 10px; min-height: 42px; transition: background 150ms; }
-.account { display: flex; align-items: center; flex-shrink: 0; height: 100%; gap: 8px; }
-.account button { height: 100%; box-sizing: border-box; padding: 0 12px; border: 0; border-right: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; transition: background 150ms, color 150ms; }
-.account button:hover { background: var(--bg-hover); color: var(--text); }
-.account button:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+.account { position: relative; flex-shrink: 0; height: 100%; }
+.user, .account button { box-sizing: border-box; padding: 0 12px; border: 0; border-radius: 0; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; transition: background 150ms, color 150ms; }
+.user { display: flex; align-items: center; gap: 8px; height: 100%; border-right: 1px solid var(--border); list-style: none; }
+.user::-webkit-details-marker { display: none; }
+.username { max-width: min(140px, 24vw); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chevron { width: 5px; height: 5px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: translateY(-2px) rotate(45deg); }
+.account[open] .chevron { transform: translateY(1px) rotate(225deg); }
+.dropdown { position: absolute; top: calc(100% + 5px); right: 0; z-index: 100; width: 180px; max-width: calc(100vw - 16px); padding: 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-panel); box-shadow: 0 4px 16px #0002; }
+.dropdown button { width: 100%; min-height: 36px; text-align: left; border-radius: 3px; }
+.user:hover, .account[open] .user, .account button:hover { background: var(--bg-hover); color: var(--text); }
+.user:focus-visible, .account button:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
 .account button:disabled { opacity: 0.6; cursor: wait; }
-.error { color: var(--text-muted); font-size: 12px; max-width: 160px; }
-@media (prefers-reduced-motion: reduce) { .form button, .account button { transition: none; } }
+.error { display: block; padding: 6px 12px; color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .form button, .user, .account button { transition: none; } }

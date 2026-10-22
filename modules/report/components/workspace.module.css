@@ -15,7 +15,7 @@
   flex-shrink: 0;
   height: var(--workspace-header-height);
   box-sizing: border-box;
-  padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 max(16px, env(safe-area-inset-left));
   gap: 32px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel);
@@ -141,7 +141,7 @@
   .header { gap: 0; padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
   .brand { margin: 0 8px; }
   .navigation { flex: 1; }
-  .headerActions { margin: 0 8px; }
+  .headerActions { margin: 0 0 0 8px; }
   .link { flex: 1 0 auto; padding: 0 12px; }
   .page { padding-top: 24px; }
   .workspace :global(.sidebar-container),
