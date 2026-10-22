@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "警情分析助手 · 本机浏览器",
+  "version": "0.15.58",
+  "version_name": "0.15.58-report.1",
+  "description": "连接已授权的警情分析助手站点，让指定会话操作本机 Chrome。",
+  "permissions": ["tabs", "tabGroups", "scripting", "storage", "activeTab", "alarms", "webNavigation", "debugger"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "service_worker.js" },
+  "action": { "default_title": "警情分析助手 · 本机浏览器", "default_popup": "popup.html" }
+}

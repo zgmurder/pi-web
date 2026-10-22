@@ -5,4 +5,4 @@ export function proxy(request: NextRequest) {
   return protectRequest(request);
 }
 
-export const config = { matcher: ["/", "/report/:path*", "/login", "/api/:path*"] };
+export const config = { matcher: ["/", "/report/:path*", "/login", "/api/:path*", "/report-chrome-connector.zip"] };

@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>本机浏览器</title><link rel="stylesheet" href="popup.css"></head>
+<body><h1>本机浏览器</h1><p id="origin"></p>
+<p>只信任单位部署的警情分析助手。授权后，指定会话可读取和操作此 Chrome 的页面；内容可能发送给模型。HTTP 会明文传输设备凭证及页面内容。</p>
+<button id="trust" type="button" disabled>信任当前站点</button>
+<section id="request" hidden><p id="session"></p><button id="approve" type="button">确认连接此会话</button></section>
+<p id="status" role="status"></p><button id="forget" type="button">停止并忘记站点</button>
+<p>停止不会注销业务系统，已送出的操作可能完成。服务端设备凭证请在网页配置中撤销。</p><script src="popup.js"></script></body></html>

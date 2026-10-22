@@ -54,6 +54,7 @@ import { createExactSystemPromptExtension } from "./exact-system-prompt";
 import { createPiWebBuiltinExtensions, createSubagentCodemodeExtension, createSubagentMcpExtensions } from "./builtin-extensions";
 import { createDataSourceExtension } from "./data-source-extension";
 import { createBusinessSystemExtension } from "@/modules/report/settings/extension";
+import { createLocalBrowserExtension } from "@/modules/report/browser/extension";
 import { DATA_SOURCE_ENTRY, selectedDataSource } from "./data-sources-shared";
 import { getDataSource } from "./data-sources";
 import { getPlatformSource } from "./model-platform-query";
@@ -2640,6 +2641,7 @@ export async function startRpcSession(
               createReadOnlyMcpPolicyExtension(),
               createDataSourceExtension(),
               createBusinessSystemExtension(),
+              createLocalBrowserExtension(),
               createProjectCommandBashExtension({
                 cwd: sessionCwd,
                 settings: settingsManager,

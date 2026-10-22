@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getAuthRetryAfterMs, recordAuthFailure, recordAuthSuccess, retryAfterSeconds } from "@/lib/auth-throttle";
 import { hasJsonContentType, isApiRequestAllowed, isApiRequestHostAllowed } from "@/lib/request-security";
 
+import { DEVICE_PATHS, isDeviceRequestAllowed } from "@/modules/report/browser/device-security";
+
 export const REPORT_SESSION_COOKIE = "report_access_token";
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -133,6 +135,9 @@ export async function logout(request: NextRequest) {
 
 export async function protectRequest(request: NextRequest) {
   const path = request.nextUrl.pathname;
+  // These exact connector routes authenticate their independent device token / one-time pairing capability.
+  if (DEVICE_PATHS.has(path)) return isDeviceRequestAllowed(request)
+    ? NextResponse.next() : authError(new ReportAuthError(403, "不可信的扩展来源"));
   const isApi = path === "/api" || path.startsWith("/api/");
   if (!(isApi ? isApiRequestAllowed(request) : isApiRequestHostAllowed(request))) {
     return authError(new ReportAuthError(403, "不可信的请求来源"));

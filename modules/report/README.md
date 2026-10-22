@@ -40,7 +40,7 @@
 
 ## 业务配置
 
-顶部齿轮提供数据源和业务系统配置，复用现有数据源面板与 DrissionPage 浏览器能力。安装、环境变量、登录定位、对话使用及凭据边界见 [settings/README.md](settings/README.md)。`app/api/report/systems/route.ts` 为薄 API，`lib/rpc-manager.ts` 仅增加业务工具扩展注册；不改变会话存储或 SSE 协议。
+顶部齿轮提供数据源、业务系统（服务器浏览器）和本机浏览器配置，复用现有数据源面板与 DrissionPage 浏览器能力。本机 Chrome 的离线扩展安装、站点信任与会话授权见 [browser/README.md](browser/README.md)，与服务器9333浏览器明确分开。安装、环境变量、登录定位、对话使用及凭据边界见 [settings/README.md](settings/README.md)。`app/api/report/systems/route.ts` 为薄 API，`lib/rpc-manager.ts` 仅增加业务工具扩展注册；不改变会话存储或 SSE 协议。
 
 ## 登录配置
 

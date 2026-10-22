@@ -5,12 +5,13 @@ import { createPortal } from "react-dom";
 import { ConfigButton, ConfigPanelShell } from "@/components/SettingsUi";
 import { DataSourcesConfig } from "@/components/DataSourcesConfig";
 import { BusinessSystems } from "./BusinessSystems";
+import { LocalBrowser } from "../browser/LocalBrowser";
 import { useI18n } from "@/hooks/useI18n";
 import styles from "./settings.module.css";
 
 function Panel({ onClose }: { onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const [section, setSection] = useState<"sources" | "systems">("sources");
+  const [section, setSection] = useState<"sources" | "systems" | "browser">("sources");
   useEffect(() => {
     const opener = document.activeElement;
     const node = dialog.current;
@@ -23,10 +24,12 @@ function Panel({ onClose }: { onClose: () => void }) {
       <header className={styles.heading}><strong>业务配置</strong><ConfigButton onClick={onClose}>关闭</ConfigButton></header>
       <div className={styles.tabs} role="group" aria-label="配置分类">
         <ConfigButton aria-pressed={section === "sources"} onClick={() => setSection("sources")}>数据源</ConfigButton>
-        <ConfigButton aria-pressed={section === "systems"} onClick={() => setSection("systems")}>业务系统</ConfigButton>
+        <ConfigButton aria-pressed={section === "systems"} onClick={() => setSection("systems")}>业务系统（服务器浏览器）</ConfigButton>
+        <ConfigButton aria-pressed={section === "browser"} onClick={() => setSection("browser")}>本机浏览器</ConfigButton>
       </div>
       <div className={styles.body} hidden={section !== "sources"}><DataSourcesConfig /></div>
       <div className={styles.body} hidden={section !== "systems"}><BusinessSystems /></div>
+      {section === "browser" && <div className={styles.body}><LocalBrowser /></div>}
     </ConfigPanelShell>
   </dialog>, document.body);
 }
