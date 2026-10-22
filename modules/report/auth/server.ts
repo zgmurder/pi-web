@@ -6,6 +6,8 @@ import { DEVICE_PATHS, isDeviceRequestAllowed } from "@/modules/report/browser/d
 
 export const REPORT_SESSION_COOKIE = "report_access_token";
 const NO_STORE = { "Cache-Control": "no-store" };
+// Not a JWT: demo sessions must never be forwarded as real Report credentials.
+const DEMO_SESSION = "local-demo";
 
 class ReportAuthError extends Error {
   constructor(public status: number, message: string, public retryAfter?: string) {
@@ -48,6 +50,9 @@ async function reportRequest(path: "login" | "me", init: RequestInit) {
 
 async function currentUser(request: NextRequest) {
   const token = request.cookies.get(REPORT_SESSION_COOKIE)?.value;
+  if (process.env.REPORT_DEMO_LOGIN === "true") {
+    return token === DEMO_SESSION ? { id: 1, username: "演示用户" } : null;
+  }
   if (!validToken(token)) return null;
   try {
     // shortcut: validate each request remotely; profile /auth/me load before adding a bounded cache.
@@ -104,6 +109,12 @@ export async function login(request: NextRequest) {
   if (!body || typeof body.username !== "string" || !body.username.trim() || [...body.username].length > 80
     || typeof body.password !== "string" || !body.password || [...body.password].length > 128) {
     return authError(new ReportAuthError(400, "请输入用户名和密码，长度分别不得超过 80 和 128 个字符"));
+  }
+  if (process.env.REPORT_DEMO_LOGIN === "true") {
+    recordAuthSuccess();
+    const response = NextResponse.json({ ok: true }, { headers: NO_STORE });
+    setSessionCookie(response, request, DEMO_SESSION);
+    return response;
   }
   try {
     const data = await reportRequest("login", {

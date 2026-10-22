@@ -11,5 +11,5 @@ export default function LoginPage() {
   } catch {
     // Invalid configuration can contain credentials; never render the raw value.
   }
-  return <ReportLoginPage backendLoginUrl={backendLoginUrl} />;
+  return <ReportLoginPage backendLoginUrl={backendLoginUrl} demoLogin={process.env.REPORT_DEMO_LOGIN === "true"} />;
 }

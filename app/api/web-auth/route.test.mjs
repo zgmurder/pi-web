@@ -5,14 +5,18 @@ import { NextRequest } from "next/server.js";
 
 const jiti = createJiti(import.meta.url, { alias: { "@": process.cwd() }, moduleCache: false });
 const { GET, POST, DELETE } = await jiti.import("./route.ts");
+const { proxy } = await jiti.import("../../../proxy.ts");
+const { isReportToken } = await import("../../../modules/report/api/policy.ts");
 const { recordAuthSuccess } = await import("../../../lib/auth-throttle.ts");
 const originalFetch = globalThis.fetch;
 const originalUrl = process.env.REPORT_API_URL;
+const originalDemo = process.env.REPORT_DEMO_LOGIN;
 const token = "test.payload.signature";
 const calls = [];
 let upstream;
 beforeEach(() => {
   recordAuthSuccess();
+  delete process.env.REPORT_DEMO_LOGIN;
   process.env.REPORT_API_URL = "http://127.0.0.1:8001";
   calls.length = 0;
   upstream = () => Response.json({ code: 0, data: { access_token: token, token_type: "bearer" } });
@@ -23,6 +27,8 @@ after(() => {
   globalThis.fetch = originalFetch;
   if (originalUrl === undefined) delete process.env.REPORT_API_URL;
   else process.env.REPORT_API_URL = originalUrl;
+  if (originalDemo === undefined) delete process.env.REPORT_DEMO_LOGIN;
+  else process.env.REPORT_DEMO_LOGIN = originalDemo;
 });
 function request(method, body, headers = {}, url = "http://localhost/api/web-auth") {
   return new NextRequest(url, { method, headers: {
@@ -120,6 +126,55 @@ test("all auth methods reject cross-origin requests", async () => {
   assert.equal((await POST(request("POST", credentials, headers))).status, 403);
   assert.equal((await DELETE(request("DELETE", undefined, headers))).status, 403);
   assert.equal((await GET(request("GET", undefined, headers))).status, 403);
+  assert.equal(calls.length, 0);
+});
+
+test("demo login, session refresh and logout work without Report; disabling rejects the marker", async () => {
+  process.env.REPORT_DEMO_LOGIN = "true";
+  upstream = () => { throw new Error("Report must not be contacted"); };
+  assert.equal((await (await GET(request("GET"))).json()).authenticated, false);
+  assert.equal((await proxy(request("GET", undefined, {}, "http://localhost/"))).status, 307);
+  assert.equal((await proxy(request("GET", undefined, {}, "http://localhost/api/sessions"))).status, 401);
+  for (const username of ["any-user", "任意用户"]) {
+    const response = await POST(request("POST", { username, password: "anything" }));
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { ok: true });
+    const cookie = response.headers.get("set-cookie");
+    assert.match(cookie, /HttpOnly/);
+    assert.match(cookie, /SameSite=lax/i);
+    assert.equal(isReportToken(cookie.split(";", 1)[0].split("=")[1]), false);
+    const headers = { Cookie: cookie.split(";", 1)[0] };
+    assert.deepEqual(await (await GET(request("GET", undefined, headers))).json(), {
+      enabled: true, authenticated: true, user: { id: 1, username: "演示用户" },
+    });
+    for (const path of ["/", "/api/sessions"]) {
+      assert.equal((await proxy(request("GET", undefined, headers, `http://localhost${path}`))).headers.get("x-middleware-next"), "1");
+    }
+    assert.equal((await proxy(request("GET", undefined, { ...headers, Host: "evil.example" }, "http://localhost/"))).status, 403);
+    const logout = await DELETE(request("DELETE", undefined, headers));
+    assert.match(logout.headers.get("set-cookie"), /Max-Age=0/);
+    const cleared = { Cookie: logout.headers.get("set-cookie").split(";", 1)[0] };
+    assert.equal((await proxy(request("GET", undefined, cleared, "http://localhost/"))).status, 307);
+    process.env.REPORT_DEMO_LOGIN = "false";
+    assert.equal((await (await GET(request("GET", undefined, headers))).json()).authenticated, false);
+    assert.equal((await proxy(request("GET", undefined, headers, "http://localhost/api/sessions"))).status, 401);
+    process.env.REPORT_DEMO_LOGIN = "true";
+  }
+  assert.equal(calls.length, 0);
+});
+
+test("demo mode retains input, origin and secure-cookie checks", async () => {
+  process.env.REPORT_DEMO_LOGIN = "true";
+  for (const body of [null, {}, { username: " ", password: "x" }, { username: "x", password: "" }, { username: "x".repeat(81), password: "x" }, { username: "x", password: "x".repeat(129) }]) {
+    assert.equal((await POST(request("POST", body))).status, 400);
+  }
+  assert.equal((await POST(request("POST", credentials, { "Content-Type": "text/plain" }))).status, 415);
+  const headers = { Origin: "https://evil.example", "Sec-Fetch-Site": "cross-site" };
+  assert.equal((await POST(request("POST", credentials, headers))).status, 403);
+  assert.equal((await GET(request("GET", undefined, headers))).status, 403);
+  assert.equal((await DELETE(request("DELETE", undefined, headers))).status, 403);
+  const response = await POST(request("POST", credentials, {}, "https://localhost/api/web-auth"));
+  assert.match(response.headers.get("set-cookie"), /Secure/);
   assert.equal(calls.length, 0);
 });
 
