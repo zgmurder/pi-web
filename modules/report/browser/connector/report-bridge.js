@@ -3,8 +3,7 @@ const REPORT_TRUST = "reportTrustedOrigin";
 const REPORT_PENDING = "reportPendingPair";
 const REPORT_CONFIG = "piChromeConnectorConfig";
 let reportChanging = false;
-// Do not expose device credentials to content-script contexts.
-const reportStorageReady = chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
+// Credentials and trust live in extension-origin IndexedDB, not content-script storage.
 
 function reportOrigin(url) {
   const parsed = new URL(url);
@@ -12,13 +11,13 @@ function reportOrigin(url) {
   return parsed.origin;
 }
 async function reportPublicStatus(origin) {
-  const state = await chrome.storage.local.get([REPORT_TRUST, REPORT_CONFIG]);
+  const state = await reportPrivateStore.get([REPORT_TRUST, REPORT_CONFIG]);
   const config = state[REPORT_CONFIG];
   return { installed: true, trusted: state[REPORT_TRUST] === origin,
     deviceId: config?.bridgeUrl === `${origin}/api/chrome-gateway` ? config.deviceId : undefined };
 }
 async function reportMessage(message, sender) {
-  await reportStorageReady;
+  await reportStorageReady();
   const popup = !sender.tab && sender.url === chrome.runtime.getURL("popup.html");
   if (popup) {
     if (message.type === "report-popup-status") {
@@ -33,27 +32,27 @@ async function reportMessage(message, sender) {
       const origin = reportOrigin(tab?.url || "");
       // Recheck the exact origin displayed by the popup, rather than trusting a changed active tab.
       if (origin !== message.origin) throw new Error("页面已切换，请重新打开扩展。");
-      const previous = (await chrome.storage.local.get(REPORT_TRUST))[REPORT_TRUST];
+      const previous = (await reportPrivateStore.get(REPORT_TRUST))[REPORT_TRUST];
       if (previous && previous !== origin) throw new Error("已信任其他站点，请先停止并忘记原站点。");
       await chrome.scripting.unregisterContentScripts({ ids: ["report-page"] }).catch(() => {});
-      await chrome.storage.local.set({ [REPORT_TRUST]: origin });
       // Match patterns cannot constrain ports: the content script and worker both recheck exact origin.
       await chrome.scripting.registerContentScripts([{ id: "report-page", matches: [`${new URL(origin).protocol}//${new URL(origin).hostname}/*`], js: ["content.js"], runAt: "document_idle", allFrames: false }]);
       await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+      await reportPrivateStore.set({ [REPORT_TRUST]: origin });
       return { ok: true };
     }
     if (message.type === "report-forget") {
-      await chrome.storage.local.remove([REPORT_TRUST, REPORT_CONFIG]);
+      await reportPrivateStore.remove([REPORT_TRUST, REPORT_CONFIG]);
+      reportConfigChanged();
       await chrome.storage.session.remove(REPORT_PENDING);
       await chrome.scripting.unregisterContentScripts({ ids: ["report-page"] }).catch(() => {});
-      reportConfigChanged();
       return { ok: true };
     }
     if (message.type === "report-approve") {
       const pending = (await chrome.storage.session.get(REPORT_PENDING))[REPORT_PENDING];
       await chrome.storage.session.remove(REPORT_PENDING);
       if (!pending || pending.expiresAt <= Date.now() || pending.sessionId !== message.sessionId || pending.origin !== message.origin) throw new Error("连接请求已过期或变更，请回到网页重新连接。");
-      const state = await chrome.storage.local.get([REPORT_TRUST, REPORT_CONFIG]);
+      const state = await reportPrivateStore.get([REPORT_TRUST, REPORT_CONFIG]);
       if (state[REPORT_TRUST] !== pending.origin) throw new Error("站点未授权。");
       const tab = await chrome.tabs.get(pending.tabId);
       if (reportOrigin(tab.url) !== pending.origin) throw new Error("发起连接的页面已离开站点。");
@@ -67,7 +66,7 @@ async function reportMessage(message, sender) {
       const result = await response.json();
       const token = result.token || (existing ? old.token : "");
       if (result.sessionId !== pending.sessionId || typeof result.deviceId !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(token)) throw new Error("配对响应无效。");
-      await chrome.storage.local.set({ [REPORT_CONFIG]: { mode: "gateway", bridgeUrl, deviceId: result.deviceId, token, allowInsecureHttp: pending.origin.startsWith("http:") } });
+      await reportPrivateStore.set({ [REPORT_CONFIG]: { mode: "gateway", bridgeUrl, deviceId: result.deviceId, token, allowInsecureHttp: pending.origin.startsWith("http:") } });
       reportConfigChanged();
       return { ok: true };
     }
@@ -75,7 +74,7 @@ async function reportMessage(message, sender) {
   }
   if (!sender.tab || sender.frameId !== 0) throw new Error("仅允许已授权站点的主页面。");
   const origin = reportOrigin(sender.url);
-  if ((await chrome.storage.local.get(REPORT_TRUST))[REPORT_TRUST] !== origin) throw new Error("请从扩展图标授权当前站点。");
+  if ((await reportPrivateStore.get(REPORT_TRUST))[REPORT_TRUST] !== origin) throw new Error("请从扩展图标授权当前站点。");
   if (message.type === "report-status") return reportPublicStatus(origin);
   if (message.type === "report-pair") {
     if (typeof message.code !== "string" || !/^[A-Z2-9-]{33}$/.test(message.code) || !/^[a-zA-Z0-9-]{1,80}$/.test(message.sessionId)) throw new Error("无效连接请求。");

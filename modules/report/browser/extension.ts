@@ -40,7 +40,7 @@ export function createLocalBrowserExtension(): InlineExtension {
           if (gateway.status(sessionId).deviceId !== before.deviceId) throw new Error("绑定设备已变更，请重新确认。");
           const actions: Record<string, string> = { tabs: "tab.list", snapshot: "page.snapshot", open: "page.navigate", click: "page.click", fill: "page.fill", key: "page.key", scroll: "page.scroll" };
           const { targetId, url, uid, selector, text, key, deltaY } = args;
-          result = await gateway.sendCommand(sessionId, actions[args.action], { targetId, url, uid, selector, text, key, deltaY, sessionKey: sessionId, background: true, foreground: false, maxElements: 150 }, 35_000, "0.15.58", signal);
+          result = await gateway.sendCommand(sessionId, actions[args.action], { targetId, url, uid, selector, text, key, deltaY, sessionKey: sessionId, background: true, foreground: false, maxElements: 150 }, 35_000, "0.15.59", signal);
         }
         const text = JSON.stringify(result) ?? "null";
         return { content: [{ type: "text", text: text.length > 60_000 ? `${text.slice(0, 60_000)}\n[结果已截断，请缩小查询范围]` : text }], details: undefined };

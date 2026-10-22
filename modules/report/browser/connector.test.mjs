@@ -4,12 +4,11 @@ import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 const source = await readFile(new URL("./connector/report-bridge.js", import.meta.url), "utf8");
 function fixture() {
-  const local = {}, session = {};
+  const local = {}, session = {}, privateData = {};
   const storage = data => ({
     async get(keys) { return Object.fromEntries((Array.isArray(keys) ? keys : [keys]).map(key => [key, data[key]])); },
     async set(values) { Object.assign(data, values); },
     async remove(keys) { for (const key of Array.isArray(keys) ? keys : [keys]) delete data[key]; },
-    async setAccessLevel(value) { assert.equal(value.accessLevel, "TRUSTED_CONTEXTS"); },
   });
   const id = "a".repeat(32), origin = "http://127.0.0.1:30142";
   const tab = { id: 1, url: origin + "/?session=session-a" };
@@ -17,6 +16,7 @@ function fixture() {
   const page = { url: tab.url, frameId: 0, tab };
   let listener, calls = 0, changes = 0;
   const context = vm.createContext({ URL, Date, AbortSignal,
+    reportPrivateStore: storage(privateData), async reportStorageReady() {},
     reportConfigChanged() { changes++; },
     chrome: {
       storage: { local: storage(local), session: storage(session) },
@@ -41,7 +41,7 @@ function fixture() {
     await new Promise(resolve => setImmediate(resolve));
     return result;
   }
-  return { local, session, tab, popup, page, origin, send, calls: () => calls, changes: () => changes };
+  return { local, privateData, session, tab, popup, page, origin, send, calls: () => calls, changes: () => changes };
 }
 
 test("extension requires popup site trust and a second session approval, never shares tokens", async () => {
@@ -59,11 +59,13 @@ test("extension requires popup site trust and a second session approval, never s
   assert.equal(f.calls(), 0);
   assert.equal((await f.send("report-approve", f.popup, { origin: f.origin, sessionId: "session-a" })).ok, true);
   assert.equal(f.calls(), 1);
-  assert.equal(f.local.piChromeConnectorConfig.token, "t".repeat(43));
+  assert.equal(f.privateData.piChromeConnectorConfig.token, "t".repeat(43));
+  assert.equal(f.local.piChromeConnectorConfig, undefined);
   assert.equal(Object.hasOwn(await f.send("report-status", f.page), "token"), false);
   assert.equal((await f.send("report-forget", f.popup)).ok, true);
   assert.equal(f.local.piChromeConnectorConfig, undefined);
-  assert.equal(f.local.reportTrustedOrigin, undefined);
+  assert.equal(f.privateData.piChromeConnectorConfig, undefined);
+  assert.equal(f.privateData.reportTrustedOrigin, undefined);
   assert.equal(f.changes(), 2);
 });
 

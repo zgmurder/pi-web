@@ -9,6 +9,7 @@ output = root.parents[2] / "public" / "report-chrome-connector.zip"
 files = sorted((root / "connector").iterdir())
 manifest = json.loads((root / "connector" / "manifest.json").read_text(encoding="utf-8"))
 assert manifest["manifest_version"] == 3
+assert manifest["minimum_chrome_version"] == "109"
 assert (root / "connector" / manifest["background"]["service_worker"]).is_file()
 assert (root / "connector" / manifest["action"]["default_popup"]).is_file()
 if "--check" in sys.argv:

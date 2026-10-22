@@ -38,15 +38,19 @@ const server = createServer(async (req, res) => {
 await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
 origin = `http://127.0.0.1:${server.address().port}`;
 try {
+  const executablePath = process.env.PI_WEB_TEST_CHROME_EXECUTABLE;
+  const extensionPath = fileURLToPath(new URL("./connector", import.meta.url));
   context = await chromium.launchPersistentContext(join(root, "chrome"), {
-    channel: process.env.PI_WEB_TEST_CHANNEL || "chrome", headless: false,
+    ...(executablePath ? { executablePath } : { channel: process.env.PI_WEB_TEST_CHANNEL || "chrome" }), headless: false,
     ignoreDefaultArgs: ["--disable-extensions"],
-    args: ["--enable-unsafe-extension-debugging"],
+    args: executablePath ? [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`] : ["--enable-unsafe-extension-debugging"],
   });
-  const cdp = await context.browser().newBrowserCDPSession();
-  const loaded = await cdp.send("Extensions.loadUnpacked", { path: fileURLToPath(new URL("./connector", import.meta.url)) });
-  const extensionOrigin = `chrome-extension://${loaded.id}`;
-  const worker = context.serviceWorkers().find(w => w.url().startsWith(extensionOrigin)) || await context.waitForEvent("serviceworker", { predicate: w => w.url().startsWith(extensionOrigin), timeout: 15000 });
+  if (!executablePath) {
+    const cdp = await context.browser().newBrowserCDPSession();
+    await cdp.send("Extensions.loadUnpacked", { path: extensionPath });
+  }
+  const worker = context.serviceWorkers().find(w => w.url().startsWith("chrome-extension://")) || await context.waitForEvent("serviceworker", { predicate: w => w.url().startsWith("chrome-extension://"), timeout: 15000 });
+  console.log(`Chrome fixture version: ${context.browser().version()}`);
   const page = context.pages()[0] || await context.newPage();
   await page.goto(origin);
   const tabId = await worker.evaluate(async origin => (await chrome.tabs.query({})).find(tab => tab.url.startsWith(origin)).id, origin);
@@ -77,7 +81,29 @@ try {
   assert.equal((await send("report-approve", { origin, sessionId })).ok, true);
   for (let i = 0; i < 100 && !gateway.status(sessionId).connected; i++) await new Promise(resolve => setTimeout(resolve, 100));
   assert.equal(gateway.status(sessionId).connected, true);
-  const command = (action, params = {}) => gateway.sendCommand(sessionId, action, { ...params, sessionKey: sessionId, background: true, foreground: false }, 35_000, "0.15.58");
+  // Real IndexedDB transactions, legacy migration and aborted writes (fixture credentials only).
+  assert.equal(await worker.evaluate(async () => {
+    const config = (await reportPrivateStore.get("piChromeConnectorConfig")).piChromeConnectorConfig;
+    if (!config?.token || (await chrome.storage.local.get("piChromeConnectorConfig")).piChromeConnectorConfig) return false;
+    await chrome.storage.local.set({ piChromeConnectorConfig: config });
+    reportStorageInitialization = undefined;
+    await reportStorageReady();
+    if ((await chrome.storage.local.get("piChromeConnectorConfig")).piChromeConnectorConfig) return false;
+    try {
+      await reportPrivateStore.transact("readwrite", store => { store.put("should-not-commit", "abort-test"); store.transaction.abort(); return () => undefined; });
+      return false;
+    } catch { /* Expected transaction abort. */ }
+    return (await reportPrivateStore.get("abort-test"))["abort-test"] === undefined && (await connectorConfig()).token === config.token;
+  }), true);
+  assert.equal(await worker.evaluate(async tabId => {
+    const [result] = await chrome.scripting.executeScript({ target: { tabId }, func: async () => {
+      const local = await chrome.storage.local.get("piChromeConnectorConfig");
+      const databases = await indexedDB.databases();
+      return !local.piChromeConnectorConfig && !databases.some(db => db.name === "report-connector-private");
+    } });
+    return result.result;
+  }, tabId), true);
+  const command = (action, params = {}) => gateway.sendCommand(sessionId, action, { ...params, sessionKey: sessionId, background: true, foreground: false }, 35_000, "0.15.59");
   const tabs = await command("tab.list");
   assert.ok(tabs.some(tab => tab.url?.startsWith(origin)));
   const targetId = String(tabId);
@@ -87,11 +113,15 @@ try {
   await command("page.fill", { targetId, selector: "#query", text: "fixture query" });
   await command("page.click", { targetId, selector: "#search" });
   assert.equal(await page.locator("#result").textContent(), "fixture query");
-  console.log("PASS real Chrome extension: site trust, explicit session pairing, HTTP polling, tabs, redacted snapshot, fill/click");
+  await command("page.key", { targetId, key: "Tab" });
+  await command("page.scroll", { targetId, deltaY: 100 });
+  await command("page.navigate", { url: origin + "/opened" });
+  console.log("PASS real Chrome extension: private storage/migration/abort/isolation, site trust, pairing, HTTP polling, seven permitted actions");
   await gateway.unpair(sessionId);
   assert.equal(gateway.status(sessionId).paired, false);
   await assert.rejects(command("tab.list"), /No Chrome device/);
   assert.equal((await send("report-forget")).ok, true);
+  assert.equal(await worker.evaluate(async () => (await reportPrivateStore.get("piChromeConnectorConfig")).piChromeConnectorConfig === undefined), true);
   assert.ok((await bridge("status")).error);
   console.log("PASS disconnect and forgetting trust block further session commands");
 } finally {

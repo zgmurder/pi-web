@@ -1,4 +1,4 @@
-importScripts("report-bridge.js");
+importScripts("private-store.js", "chrome-compat.js", "report-bridge.js");
 const CONNECTOR_CONFIG_KEY = "piChromeConnectorConfig";
 const CLIENT_NAME = `Pi Chrome Connector ${chrome.runtime.id}`;
 const POLL_ERROR_BACKOFF_MS = 2000;
@@ -21,8 +21,9 @@ const CDP_FOCUS_METHODS = new Set(["Page.bringToFront", "Target.activateTarget"]
 let polling = false;
 let configGeneration = 0;
 
-function connectorConfig() {
-  return chrome.storage.local.get(CONNECTOR_CONFIG_KEY).catch(() => ({})).then(async (stored) => {
+async function connectorConfig() {
+  await reportStorageReady();
+  return reportPrivateStore.get(CONNECTOR_CONFIG_KEY).then(async (stored) => {
     const config = stored?.[CONNECTOR_CONFIG_KEY];
     if (config?.mode === "gateway" && config.bridgeUrl && config.deviceId && config.token) {
       const url = new URL(config.bridgeUrl);
@@ -385,12 +386,12 @@ async function pageDebuggeeForTab(tabId) {
 async function debuggerAttachRaw(tabId, preferredDebuggee) {
   const debuggee = preferredDebuggee || { tabId };
   await withTimeout(
-    chrome.debugger.attach(debuggee, CDP_VERSION),
+    reportDebuggerCall("attach", debuggee, CDP_VERSION),
     ATTACH_TIMEOUT_MS,
     `Chrome debugger attach to tab ${tabId}`,
     async () => {
       attachedTabs.delete(tabId);
-      try { await chrome.debugger.detach(debuggee); } catch {}
+      try { await reportDebuggerCall("detach", debuggee); } catch {}
     },
   );
   return debuggee;
@@ -411,7 +412,7 @@ async function attachDebugger(tabId) {
     for (const tgt of targets) {
       if (tgt.tabId === tabId && tgt.attached) {
         recordAttachEvent({ kind: "stale-target-found", tabId, target: { id: tgt.id, type: tgt.type, url: tgt.url, extensionId: tgt.extensionId } });
-        try { await chrome.debugger.detach({ tabId }); } catch {}
+        try { await reportDebuggerCall("detach", { tabId }); } catch {}
         await sleep(80);
         break;
       }
@@ -557,7 +558,7 @@ async function detachDebugger(tabId) {
   const entry = attachedTabs.get(tabId);
   if (!entry) return;
   attachedTabs.delete(tabId);
-  try { await chrome.debugger.detach(entry.debuggee || { tabId }); } catch {}
+  try { await reportDebuggerCall("detach", entry.debuggee || { tabId }); } catch {}
 }
 
 async function detachAll() {
@@ -606,7 +607,7 @@ function cdpRaw(tabId, method, params, opts) {
     });
   }), timeoutMs, `CDP ${method}`, async () => {
     attachedTabs.delete(tabId);
-    try { await chrome.debugger.detach(debuggee); } catch {}
+    try { await reportDebuggerCall("detach", debuggee); } catch {}
   });
 }
 
@@ -1593,7 +1594,8 @@ async function uploadViaFileChooser(tab, params, paths, objectId, info) {
 
 
 function armKeepaliveAlarm() {
-  chrome.alarms.create("pi-bridge-keepalive", { periodInMinutes: 0.5 });
+  // Chrome 109 requires at least one minute; 30-second alarms arrived in Chrome 120.
+  chrome.alarms.create("pi-bridge-keepalive", { periodInMinutes: 1 });
 }
 
 chrome.runtime.onInstalled.addListener(() => {
