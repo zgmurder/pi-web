@@ -8,7 +8,7 @@ const jiti = createJiti(import.meta.url, { tsconfigPaths: true });
 const { createLocalBrowserExtension } = await jiti.import("./extension.ts");
 const { getChromeGateway, resetChromeGatewayForTests } = await jiti.import("./gateway.ts");
 
-test("local browser tool requires UI approval, enforces read-only preset and routes only current session", async () => {
+test("local browser tool uses session authorization, enforces read-only preset and routes only current session", async () => {
   const root = await mkdtemp(join(tmpdir(), "report-local-tool-"));
   const previous = process.env.PI_CODING_AGENT_DIR;
   process.env.PI_CODING_AGENT_DIR = root;
@@ -20,10 +20,8 @@ test("local browser tool requires UI approval, enforces read-only preset and rou
     const device = await gateway.claimPair({ code: gateway.createPair("session-a").code, name: "Fixture" });
     gateway.noteDevice(device.deviceId, device.token, {});
     let entries = [];
-    const ctx = { hasUI: true, ui: { confirm: async () => true }, sessionManager: { getSessionId: () => "session-a", getEntries: () => entries } };
+    const ctx = { hasUI: false, sessionManager: { getSessionId: () => "session-a", getEntries: () => entries } };
     const execute = (args, context = ctx) => tool.execute("test", args, undefined, undefined, context);
-    await assert.rejects(execute({ action: "tabs" }, { ...ctx, hasUI: false }), /未批准/);
-    await assert.rejects(execute({ action: "snapshot" }, { ...ctx, ui: { confirm: async () => false } }), /未批准/);
     for (const url of ["file:///private", "https://user:password@example.test"]) await assert.rejects(execute({ action: "open", url }));
     await assert.rejects(execute({ action: "fill", text: "query" }), /uid/);
     entries = [{ type: "custom", customType: "pi-web:tool-selection", data: { version: 1, tools: ["read"] } }];
@@ -36,7 +34,14 @@ test("local browser tool requires UI approval, enforces read-only preset and rou
     gateway.submitResult(device.deviceId, device.token, { id: command.id, ok: true, result: { text: "fixture" } });
     assert.match((await pending).content[0].text, /fixture/);
     await assert.rejects(execute({ action: "tabs" }, { ...ctx, sessionManager: { ...ctx.sessionManager, getSessionId: () => "session-b" } }), /未连接/);
-    await assert.rejects(execute({ action: "tabs" }, { ...ctx, ui: { confirm: async () => { await gateway.unpair("session-a"); return true; } } }), /变更/);
+    const originalStatus = gateway.status.bind(gateway);
+    let statusCalls = 0;
+    gateway.status = sessionId => {
+      statusCalls += 1;
+      const status = originalStatus(sessionId);
+      return statusCalls === 2 ? { ...status, deviceId: "changed-device" } : status;
+    };
+    await assert.rejects(execute({ action: "tabs" }), /重新连接/);
   } finally {
     resetChromeGatewayForTests();
     if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR; else process.env.PI_CODING_AGENT_DIR = previous;

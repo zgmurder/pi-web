@@ -58,7 +58,7 @@ function BrowserSession({ sessionId }: { sessionId: string }) {
 
   async function act(action: "pair" | "cancel" | "disconnect" | "revoke") {
     if (busy) return;
-    if (action === "pair" && !window.confirm(`将本机 Chrome 授权给当前会话：${sessionId}\n每次浏览器工具操作仍会请求确认；页面数据可能发送给模型。HTTP 连接会明文传输，请仅在可信内网使用。`)) return;
+    if (action === "pair" && !window.confirm(`将本机 Chrome 授权给当前会话：${sessionId}\n连接期间，浏览器工具将自动执行后续操作，不再逐次确认；页面数据可能发送给模型。HTTP 连接会明文传输，请仅在可信内网使用。`)) return;
     if (action === "revoke" && !window.confirm("撤销此设备的全部会话连接？已送出的操作可能完成，业务系统登录态不会退出。")) return;
     setBusy(true); setMessage("");
     try {
@@ -136,7 +136,7 @@ function BrowserSession({ sessionId }: { sessionId: string }) {
         <summary>安全与使用说明</summary>
         <ul className={styles.instructions}>
           <li>这是您当前电脑的 Chrome，不是服务器的 9333 浏览器。仅对明确连接的会话生效，新会话不会继承设备。</li>
-          <li>HTTP 会明文传输设备凭证和页面内容；浏览器工具每次操作仍需确认，页面数据可能进入模型与会话。</li>
+          <li>HTTP 会明文传输设备凭证和页面内容；连接即授权当前会话自动执行后续浏览器操作，页面数据可能进入模型与会话。</li>
           <li>停止接收所有命令：在扩展中点击“停止并忘记站点”。断开不会关闭业务标签页或注销账号，已送出的操作可能完成。</li>
           <li>所有登录账号仍属于可信操作员共享环境，设备绑定不等于用户权限隔离。</li>
         </ul>
