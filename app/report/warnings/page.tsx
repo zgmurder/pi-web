@@ -1,5 +1,5 @@
-import { ModuleLanding } from "@/modules/report/pages/ModuleLanding";
+import WarningWorkbench from "@/modules/report/warnings/WarningWorkbench";
 
 export default function WarningsPage() {
-  return <ModuleLanding module="warnings" />;
+  return <WarningWorkbench />;
 }

@@ -1,5 +1,5 @@
-import { ModuleLanding } from "@/modules/report/pages/ModuleLanding";
+import TagWorkbench from "@/modules/report/tags/TagWorkbench";
 
 export default function AnalysisPage() {
-  return <ModuleLanding module="analysis" />;
+  return <TagWorkbench />;
 }

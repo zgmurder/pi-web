@@ -33,7 +33,13 @@ try {
   for (const [path, label] of [["analysis", "研判"], ["warnings", "预警"], ["tagging", "打标"], ["police", "查询"], ["police-stats", "统计"], ["dashboard", "大屏"]]) {
     await page.goto(`${base}/report/${path}`);
     await active(label);
-    await page.getByRole("heading", { name: "功能待接入" }).waitFor();
+    if (path === "dashboard") {
+      await page.getByRole("heading", { name: "功能待接入" }).waitFor();
+    } else {
+      const headings = { analysis: "标签组合", warnings: "预警模型", tagging: "警情打标", police: "警情查询", "police-stats": "110 统计" };
+      await page.getByRole("heading", { name: new RegExp(headings[path]) }).first().waitFor();
+      assert.equal(await page.getByRole("heading", { name: "功能待接入" }).count(), 0);
+    }
   }
   await nav().getByRole("link", { name: "研判", exact: true }).click();
   await active("研判");

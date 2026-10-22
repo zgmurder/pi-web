@@ -1,0 +1,5 @@
+/* Inherit Pi Web's theme on pages and portaled menus/dialogs alike. */
+.surface {
+  accent-color: var(--accent);
+  font-family: var(--font-ui);
+}

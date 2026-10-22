@@ -8,16 +8,16 @@
 | --- | --- |
 | `/login` | Report 用户名、密码登录（简体中文） |
 | `/` | 原对话功能，保留原工具栏 |
-| `/report/analysis` | 研判占位页 |
-| `/report/warnings` | 预警占位页 |
-| `/report/tagging` | 打标占位页 |
-| `/report/police` | 警情查询占位页 |
-| `/report/police-stats` | 警情统计占位页 |
+| `/report/analysis` | 研判包：标签组合、条件检索、详情、导出 |
+| `/report/warnings` | 预警：规则、筛选、分页、趋势详情 |
+| `/report/tagging` | 警情打标：标签检索、详情、核对与编辑 |
+| `/report/police` | 警情查询：接警/反馈/标签查询、字段选择、导出 |
+| `/report/police-stats` | 110 统计：接警/反馈、分析级别、同比/环比、导出 |
 | `/report/dashboard` | 大屏占位页 |
 
 导航顺序为对话、研判、预警、打标、查询、统计、大屏（页面标题保留警情查询、警情统计）；窄屏下导航栏可横向滚动，页面本身不横向溢出。
 
-`app/report/**` 只负责挂载。导航、样式、登录与业务页面在本目录；后续业务 API 应在本目录实现，不依赖 Pi 的 AgentSession、会话存储或 SDK 私有接口。
+`app/report/**` 只负责挂载。导航、样式、登录与业务页面在本目录；业务 API 在 `api/` 实现，不依赖 Pi 的 AgentSession、会话存储或 SDK 私有接口。
 
 ## 与 Pi Web 的接入点
 
@@ -28,7 +28,15 @@
 - `lib/i18n/messages/{en,zh-CN,zh-TW}.ts`：`workspaceNav.*` 文案。
 - `package.json`：默认单测包含 `modules/**/*.test.mjs`。
 
-CSS module 使用现有主题变量；手机抽屉和文件面板的高度/顶部偏移仅在本布局内覆盖。合并上游时检查上述接入点及 `.sidebar-container` / `.right-panel-container` 类名；不能保证完全无合并冲突。
+外层布局和五个业务页面统一继承 Pi Web 当前主题；`components/business.module.css` 仅共享字体、原生控件配色继承与强调色，不覆盖宿主颜色变量。弹窗、抽屉和 Portal 下拉菜单同样跟随主题，告警/增长等语义色保留。`theme.e2e.mjs` 已通过浅色、深色、mist、pine、高对比深色五种主题的计算样式、按钮对比文字、原生日期控件与 390px 窄屏检查；覆盖组合编辑弹窗、body Portal 标签菜单和预警详情抽屉。手机抽屉和文件面板的高度/顶部偏移仅在本布局内覆盖。合并上游时检查上述接入点及 `.sidebar-container` / `.right-panel-container` 类名；不能保证完全无合并冲突。
+
+## 业务页面与接口
+
+业务页面采用 React 原生移植，复用原 Report 后端，不加载 Vue。共享入口 `/api/report/business/[...path]` 从 HttpOnly 会话 Cookie 获取令牌，仅向固定 `REPORT_API_URL` 转发白名单接口；支持来源校验、错误脱敏、请求限制、超时及 XLSX 导出。业务数据权限最终由 Report 后端校验，前端部门选择不构成授权边界。
+
+实现与差异说明：[API](api/README.md)、[研判与打标](tags/README.md)、[预警](warnings/README.md)、[查询与统计](police/README.md)。日期、选择器、分页等部分交互由 React / 原生控件代替 Naive UI，尚未达到逐像素一致。
+
+**专项报告编辑器尚未迁移**，研判包对应入口明确显示待接入并禁用，不创建无法打开的报告。
 
 ## 业务配置
 
@@ -67,10 +75,20 @@ PI_WEB_TEST_STORAGE_STATE=/secure/path/report-state.json PI_WEB_TEST_URL=http://
 
 浏览器检查预期输出三行 `PASS`：独立路由与历史导航、未发送草稿恢复、窄屏布局与无 Agent 提示提交。测试不发送模型请求。
 
+业务回归（复用上面的已登录环境变量）：
+
+```bash
+node --test modules/report/api/*.test.mjs modules/report/tags/*.test.mjs modules/report/police/*.test.mjs modules/report/warnings/*.test.mjs
+node modules/report/business.e2e.mjs
+REPORT_TEST_URL=http://127.0.0.1:30142 REPORT_TEST_STORAGE_STATE=/secure/path/report-state.json node modules/report/police/smoke.e2e.mjs
+```
+
+`business.e2e.mjs` 只读验证预警详情、组合编辑取消、标签筛选面板和窄屏，不保存/删除组合或提交核对。没有测试账号时不要使用虚构数据冒充联调成功。
+
 ## 本阶段边界
 
-- 业务页面只显示“功能待接入”；已接入 Report 登录，尚无业务数据 CRUD、角色或部门数据权限（配置管理除外）。
+- 五个业务页面已接入；大屏仍为占位页，专项报告编辑器未接入。
 - 只对可信操作员开放；登录不是业务权限隔离。
 - 切换业务路由会卸载对话 UI，沿用原来的流断开/返回重连机制，不新增后台常驻对话。业务页不显示对话的实时输出或完成声音。
 - 草稿沿用内存存储，只保证同一标签页内客户端路由切换；刷新/关闭页面不保留。新对话的临时模型/推理选项、文件面板等非持久 UI 状态不在本阶段跨路由保留。
-- 复用现有 Report 后端，不修改其代码。已验证健康检查与匿名 `/auth/me` 拒绝访问；未使用真实账号验证登录，也未验证真实业务接口、运行中 Agent 跨路由或真机软键盘表现。
+- 复用现有 Report 后端，不修改其代码。已使用已有登录态验证真实查询、统计、预警列表与详情、组合编辑取消；未对真实组合执行新增/删除、核对写入，未验收导出文件内容、低权限账号隔离、运行中 Agent 跨路由或真机软键盘表现。

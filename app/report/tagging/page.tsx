@@ -1,5 +1,5 @@
-import { ModuleLanding } from "@/modules/report/pages/ModuleLanding";
+import AlarmTagging from "@/modules/report/tags/AlarmTagging";
 
 export default function TaggingPage() {
-  return <ModuleLanding module="tagging" />;
+  return <AlarmTagging />;
 }

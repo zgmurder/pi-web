@@ -1,5 +1,5 @@
-import { ModuleLanding } from "@/modules/report/pages/ModuleLanding";
+import PoliceQuery from "@/modules/report/police/PoliceQuery";
 
 export default function PolicePage() {
-  return <ModuleLanding module="police" />;
+  return <PoliceQuery />;
 }
