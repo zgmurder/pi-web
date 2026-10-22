@@ -18,6 +18,18 @@ Typecheck: `node_modules/.bin/tsc --noEmit` · Lint: `npm run lint`
 - Never fall back to `next dev --webpack`: the dev graph can fail on `undici` imports such as `node:console`. Development uses Turbopack.
 - `next dev` may append a generated `BEGIN:nextjs-agent-rules` block to `AGENTS.md`. It is tooling output: check `git status` and keep it out of unrelated commits.
 
+### 内网提交与推送
+
+- 用户要求“推送至内网”时，使用 `intranet` 远端，不默认推送 GitHub `origin`。当前内网地址：`ssh://admin@192.168.31.98:29418/~admin/pi-web.git`，业务开发分支为 `dev`；推送前核对当前分支与提交范围，不夹带并行任务。
+- 内网使用 **账号密码认证**（当前账号 `admin`），不要默认要求配置 SSH 密钥。密码只通过本机交互提示或安全凭据渠道提供，不写进项目、远端 URL、命令参数或日志；没有密码输入渠道时请用户在本机终端执行，不把密钥认证失败当作密码错误。
+- 旧 SSH 服务需要单次启用 `HostKeyAlgorithms=+ssh-rsa`；保留主机密钥校验，不修改全局 SSH 安全配置，不使用 `BatchMode=yes` 禁止密码交互。Git Bash 中执行：
+
+  ```bash
+  GIT_SSH_COMMAND='ssh -o HostKeyAlgorithms=+ssh-rsa -o PreferredAuthentications=keyboard-interactive,password -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1' git push intranet HEAD:refs/heads/dev
+  ```
+
+- 推送后核对内网分支与本地提交一致；认证失败或非快进时停止，不强制推送。仅推送代码不代表已部署。服务端旧 SSH 算法兼容是临时措施，建议后续升级服务端。
+
 ### Upgrading pi
 
 pi's packages depend on each other with `^` ranges, and the published pi-web's dependencies resolve afresh on install (no lockfile ships). Install every `@earendil-works/*` package the tree holds, the SDK's own dependencies included (`pi-codemode`, `pi-mcp`, `pi-telemetry`, …), with `npm install --save-exact`, so npm reuses those exact versions for the SDK's ranges. `lib/pi-packages.test.mjs` fails on any pi package that is not pinned that way; pi-web 0.12.0 pinned four, and installs after pi 1.2.0 paired pi-coding-agent 1.1.0 with pi-codemode 1.2.0.
