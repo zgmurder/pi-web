@@ -43,8 +43,10 @@ export function DataSourceSelector({ sessionId, branchId, ensureSession, disable
       try {
         const r = await fetch("/api/data-sources"); const b = await r.json(); if (!r.ok) throw new Error(b.error);
         const selection = sessionId ? await sendAgentCommand<{ id: string | null }>(sessionId, { type: "get_data_source" }) : { id: null };
-        if (!cancelled) { setSources(b.sources); setId(selection.id ?? ""); setError(b.warning ?? ""); }
-      } catch (e) { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); }
+        if (!cancelled) { setSources(b.sources); setId(selection.id ?? ""); }
+      } catch {
+        // Background availability errors belong in Settings, not beside the composer.
+      }
     };
     void load(); window.addEventListener("pi-web:data-sources-changed", load);
     return () => { cancelled = true; window.removeEventListener("pi-web:data-sources-changed", load); };

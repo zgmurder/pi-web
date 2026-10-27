@@ -1432,7 +1432,7 @@ export function AppShell() {
   // Subagent work tabs: like files, only the active one is mounted.
   const activeAgentTab = agentTabs.find((tab) => `agent:${tab.sessionId}` === activeFileTabId) ?? null;
   const activeCwdName = activeCwd ? getFileName(activeCwd) || activeCwd : null;
-  const windowTitle = activeCwdName ? `${activeCwdName} - 警情分析助手` : "警情分析助手";
+  const windowTitle = activeCwdName ? `${activeCwdName} - 东警AI助手` : "东警AI助手";
 
   useEffect(() => {
     const syncWindowTitle = () => {
@@ -2167,7 +2167,7 @@ export function AppShell() {
     <div style={{
       display: "flex",
       width: "100%",
-      height: "var(--workspace-content-height, var(--app-viewport-height, 100dvh))",
+      height: "var(--app-viewport-height, 100dvh)",
       paddingLeft: "env(safe-area-inset-left)",
       paddingRight: "env(safe-area-inset-right)",
       overflow: "hidden",

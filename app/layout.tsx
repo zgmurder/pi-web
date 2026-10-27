@@ -17,15 +17,30 @@ const notoSansMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "警情分析助手",
-  description: "警情分析助手",
-  applicationName: "警情分析助手",
+  title: "东警AI助手",
+  description: "东警AI助手",
+  applicationName: "东警AI助手",
   manifest: "/manifest.webmanifest",
-  icons: { icon: "data:," },
+  icons: {
+    icon: [
+      {
+        url: "/icons/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+    ],
+    apple: [
+      {
+        url: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "警情分析助手",
+    title: "东警AI助手",
   },
   formatDetection: {
     telephone: false,

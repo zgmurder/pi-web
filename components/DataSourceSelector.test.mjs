@@ -11,6 +11,16 @@ test('data source popup reuses reasoning selector rows and retains permission gu
   assert.match(source, /chatOnly && value && value !== "__manage__"/);
   assert.match(source, /type: "set_data_source"/);
 });
+test('background failures stay silent while explicit selection failures remain visible', () => {
+  const load = source.slice(source.indexOf('const load = async'), source.indexOf('async function select'));
+  assert.ok(load.includes('await fetch("/api/data-sources")'));
+  assert.match(load, /if \(!r\.ok\) throw new Error/);
+  assert.match(load, /catch \{/);
+  assert.doesNotMatch(load, /setError|b\.warning/);
+  const select = source.slice(source.indexOf('async function select'), source.indexOf('const label ='));
+  assert.match(select, /catch \(e\) \{ setError/);
+  assert.match(source, /error && <span role="alert"/);
+});
 test('popup includes keyboard navigation, dismissal and reasoning popup geometry', () => {
   for (const key of ['ArrowDown', 'ArrowUp', 'Home', 'End', 'Escape']) assert.ok(source.includes(`"${key}"`));
   assert.match(source, /removeEventListener\("pointerdown", dismiss\)/);

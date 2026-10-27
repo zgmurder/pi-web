@@ -6,6 +6,7 @@ export const SETTINGS_SECTION_VALUES = [
   "plugins",
   "mcp",
   "data-sources",
+  "local-browser",
 ] as const;
 
 export type SettingsSection = (typeof SETTINGS_SECTION_VALUES)[number];

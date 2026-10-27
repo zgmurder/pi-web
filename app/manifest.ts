@@ -3,7 +3,7 @@ import type { MetadataRoute } from "next";
 export const dynamic = "force-dynamic";
 
 export default function manifest(): MetadataRoute.Manifest {
-  const appName = process.env.PI_WEB_APP_NAME?.trim() || "警情分析助手";
+  const appName = process.env.PI_WEB_APP_NAME?.trim() || "东警AI助手";
   return {
     id: "/",
     name: appName,
@@ -16,6 +16,19 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#1a1a1a",
     categories: ["developer", "productivity"],
     lang: "en",
-    icons: [],
+    icons: [
+      {
+        src: "/icons/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icons/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+    ],
   };
 }
