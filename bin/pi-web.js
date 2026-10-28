@@ -124,7 +124,7 @@ function startServer({ port, hostname, openBrowser }) {
   const child = spawn(process.execPath, getNextNodeArgs(nextBin, nextArgs), {
     cwd: pkgDir,
     stdio: ["inherit", "pipe", "inherit"],
-    env: { ...process.env, PI_WEB_HOSTNAME: hostname, PI_WEB_INSTANCE_ROOT: pkgDir },
+    env: { ...process.env, PI_WEB_HOSTNAME: hostname, PI_WEB_INSTANCE_ROOT: process.env.PI_WEB_INSTANCE_ROOT || pkgDir },
   });
   wireChildProcessLifecycle(child);
 

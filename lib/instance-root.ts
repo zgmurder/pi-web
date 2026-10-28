@@ -2,7 +2,7 @@ import { lstatSync, realpathSync } from "fs";
 import path from "path";
 import { hasParentDirectorySegment, isPathWithinRoots } from "./path-security";
 
-/** Set by the production launcher to its canonical package directory, never by a request. */
+/** Operator-configured root; the production launcher defaults to its canonical package directory. */
 export function getInstanceRoot(): string | undefined {
   return process.env.PI_WEB_INSTANCE_ROOT || undefined;
 }
