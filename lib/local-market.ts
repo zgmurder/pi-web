@@ -119,20 +119,24 @@ export async function installLocalMarketSkill(id: string, destinationRoot: strin
   let skill: MarketSkillSource | undefined;
   if (remoteMarketUrl()) {
     const source = await remoteMarketSource("skill", id);
-    const raw = readRegularFileText(path.join(source, "SKILL.md"), MANIFEST_MAX_BYTES);
-    const data = raw ? parseFrontmatter(raw).data : undefined;
-    const name = text(data?.name);
-    const description = text(data?.description);
-    if (!name || !SKILL_NAME_RE.test(name) || name.length > 64 || !description || description.length > 1024) {
-      throw new Error("Invalid market skill manifest");
-    }
-    skill = { id, name, description, source };
+    return installMarketSkillSource(source, destinationRoot);
   } else {
     skill = await resolveLocalMarketSkill(id);
   }
   if (!skill) throw new Error("Market skill not found");
 
-  const destination = path.join(destinationRoot, skill.name);
+  return installMarketSkillSource(skill.source, destinationRoot);
+}
+
+export async function installMarketSkillSource(source: string, destinationRoot: string): Promise<string> {
+  const raw = readRegularFileText(path.join(source, "SKILL.md"), MANIFEST_MAX_BYTES);
+  const data = raw ? parseFrontmatter(raw).data : undefined;
+  const name = text(data?.name);
+  const description = text(data?.description);
+  if (!name || !SKILL_NAME_RE.test(name) || name.length > 64 || !description || description.length > 1024) {
+    throw new Error("Invalid market skill manifest");
+  }
+  const destination = path.join(destinationRoot, name);
   await mkdir(destinationRoot, { recursive: true });
   try {
     await mkdir(destination);
@@ -141,7 +145,7 @@ export async function installLocalMarketSkill(id: string, destinationRoot: strin
     throw error;
   }
   try {
-    await cp(skill.source, destination, {
+    await cp(source, destination, {
       recursive: true,
       errorOnExist: true,
       force: false,

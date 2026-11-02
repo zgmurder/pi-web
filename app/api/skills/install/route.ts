@@ -3,6 +3,7 @@ import path from "path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { runNpx } from "@/lib/npx";
 import { installLocalMarketSkill } from "@/lib/local-market";
+import { installSkillHubSkill } from "@/lib/skill-hub-market";
 import { getAllowedFileRoots, isExistingFilePathAllowed } from "@/lib/file-access";
 import { hasJsonContentType, isApiRequestAllowed } from "@/lib/request-security";
 import { getProjectTrustStatus } from "@/lib/project-trust";
@@ -27,6 +28,10 @@ export async function POST(req: Request) {
       scope?: string;
       cwd?: string;
     };
+    if ((marketId !== undefined && typeof marketId !== "string") || (pkg !== undefined && typeof pkg !== "string")
+      || (cwd !== undefined && typeof cwd !== "string") || (scope !== "global" && scope !== "project")) {
+      return NextResponse.json({ error: "Invalid install request" }, { status: 400 });
+    }
     if (!marketId?.trim() && !pkg?.trim()) {
       return NextResponse.json({ error: "package or marketId required" }, { status: 400 });
     }
@@ -49,8 +54,11 @@ export async function POST(req: Request) {
       const destinationRoot = isGlobal
         ? path.join(getAgentDir(), "skills")
         : path.join(cwd!, ".pi", "skills");
-      await installLocalMarketSkill(marketId.trim(), destinationRoot);
-      return NextResponse.json({ success: true });
+      const id = marketId.trim();
+      const name = id.startsWith("skillhub:")
+        ? await installSkillHubSkill(id.slice("skillhub:".length), destinationRoot, req)
+        : path.basename(await installLocalMarketSkill(id, destinationRoot));
+      return NextResponse.json({ success: true, name });
     }
 
     const args = ["skills", "add", pkg!.trim(), "-y", "--agent", "pi"];

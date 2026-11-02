@@ -373,6 +373,7 @@ function AddSkillPanel({
   const [results, setResults] = useState<SkillSearchResult[]>([]);
   const [marketSkills, setMarketSkills] = useState<LocalMarketSkill[]>([]);
   const [marketUrl, setMarketUrl] = useState<string>();
+  const [skillHub, setSkillHub] = useState(false);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [installing, setInstalling] = useState<string | null>(null);
@@ -385,9 +386,10 @@ function AddSkillPanel({
 
   useEffect(() => {
     inputRef.current?.focus();
-    fetch("/api/market")
+    fetch("/api/market?kind=skill")
       .then(async (response) => {
-        const result = await response.json() as { skills?: LocalMarketSkill[]; websiteUrl?: string; error?: string };
+        const result = await response.json() as { skills?: LocalMarketSkill[]; websiteUrl?: string; source?: string; error?: string };
+        setSkillHub(result.source === "skill-hub");
         if (!response.ok || result.error) throw new Error(result.error ?? `HTTP ${response.status}`);
         setMarketSkills(result.skills ?? []);
         setMarketUrl(result.websiteUrl);
@@ -396,7 +398,7 @@ function AddSkillPanel({
   }, []);
 
   const search = useCallback(async (q: string) => {
-    if (!q.trim()) return;
+    if (skillHub || !q.trim()) return;
     setSearching(true);
     setSearchError(null);
     setResults([]);
@@ -421,7 +423,7 @@ function AddSkillPanel({
     } finally {
       setSearching(false);
     }
-  }, [t]);
+  }, [t, skillHub]);
 
   const install = useCallback(
     async (pkg: string, marketId?: string) => {
@@ -494,7 +496,7 @@ function AddSkillPanel({
             onKeyDown={(e) => {
               if (e.key === "Enter") search(query);
             }}
-             placeholder={t("i18n.skillSearchPlaceholder")}
+             placeholder={skillHub ? t("market.localSkills") : t("i18n.skillSearchPlaceholder")}
             style={{
               flex: 1,
               padding: "7px 10px",
@@ -506,13 +508,13 @@ function AddSkillPanel({
               outline: "none",
             }}
           />
-          <ConfigButton
+          {!skillHub && <ConfigButton
             variant="primary"
             onClick={() => search(query)}
             disabled={searching || !query.trim()}
           >
              {searching ? t("i18n.searching") : t("i18n.search")}
-          </ConfigButton>
+          </ConfigButton>}
         </div>
 
         {/* Errors */}
@@ -528,19 +530,19 @@ function AddSkillPanel({
         )}
       </div>
 
-      <ConfigSectionTitle>{t("market.localSkills")}</ConfigSectionTitle>
+      <ConfigSectionTitle>{skillHub ? `Skill Hub · ${t("market.localSkills")}` : t("market.localSkills")}</ConfigSectionTitle>
       {marketSkills.length === 0 ? (
         <ConfigEmptyState>{t("market.noSkills")}</ConfigEmptyState>
       ) : (
         <div>
-          {marketSkills.map((skill) => {
+          {marketSkills.filter(skill => !skillHub || `${skill.displayName ?? skill.name} ${skill.description}`.toLowerCase().includes(query.trim().toLowerCase())).map((skill) => {
             const isInstalled = installedSkillNames[scope].has(skill.name)
               || newlyInstalledPkgs.has(`${scope}:${skill.name}`);
             const isInstalling = installing === skill.name;
             return (
               <div key={skill.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{skill.detailUrl ? <a href={skill.detailUrl} target="_blank" rel="noopener noreferrer">{skill.displayName ?? skill.name}</a> : skill.name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{skill.detailUrl ? <a href={skill.detailUrl} target="_blank" rel="noopener noreferrer">{skill.displayName ?? skill.name}</a> : (skill.displayName ?? skill.name)}</div>
                   {skill.version && <div style={{ fontSize: 11, color: "var(--text-dim)" }}>v{skill.version}</div>}
                   <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3 }}>{skill.description}</div>
                 </div>
