@@ -1,9 +1,9 @@
 import { Type } from "@earendil-works/pi-ai";
 import type { InlineExtension } from "@earendil-works/pi-coding-agent";
 import { getChromeGateway } from "./gateway";
-import { readSessionToolSelection } from "@/lib/session-tool-selection";
-import { isReadOnlySelection } from "@/lib/mcp-read-only-policy";
-import type { SessionEntry } from "@/lib/types";
+import { readSessionToolSelection } from "../../lib/session-tool-selection";
+import { isReadOnlySelection } from "../../lib/mcp-read-only-policy";
+import type { SessionEntry } from "../../lib/types";
 
 export function createLocalBrowserExtension(): InlineExtension {
   return { name: "local-browser", factory(pi) {

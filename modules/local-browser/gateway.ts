@@ -3,8 +3,8 @@ import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import lockfile from "proper-lockfile";
-import { writePrivateFileAtomicSync } from "@/lib/atomic-file";
-import { readRegularFileText } from "@/lib/regular-file";
+import { writePrivateFileAtomicSync } from "../../lib/atomic-file";
+import { readRegularFileText } from "../../lib/regular-file";
 
 const STORE_VERSION = 1;
 const STORE_MAX_BYTES = 4 * 1024 * 1024;

@@ -16,7 +16,7 @@ const { focusIfLost } = await jiti.import("@/lib/stacked-dialog.ts");
 const { enLocale } = await jiti.import("@/lib/i18n/messages/en.ts");
 const { zhCNLocale } = await jiti.import("@/lib/i18n/messages/zh-CN.ts");
 const { interpolateMessage } = await jiti.import("@/lib/i18n/format.ts");
-const panelSource = await readFile(new URL("./DebugPanel.tsx", import.meta.url), "utf8");
+const panelSource = (await readFile(new URL("./DebugPanel.tsx", import.meta.url), "utf8")).replace(/\r\n/g, "\n");
 const shellSource = await readFile(new URL("./AppShell.tsx", import.meta.url), "utf8");
 const sidebarSource = await readFile(new URL("./SessionSidebar.tsx", import.meta.url), "utf8");
 

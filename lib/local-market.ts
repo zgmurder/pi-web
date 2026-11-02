@@ -145,18 +145,23 @@ export async function installMarketSkillSource(source: string, destinationRoot: 
     throw error;
   }
   try {
-    await cp(source, destination, {
-      recursive: true,
-      errorOnExist: true,
-      force: false,
-      filter: async (source) => {
-        const stats = await lstat(source);
-        if (!stats.isDirectory() && !stats.isFile()) {
-          throw new Error(`Market skill contains an unsupported link or file: ${source}`);
-        }
-        return true;
-      },
-    });
+    // Reserve the destination above, then copy children: Node 22 refuses cp into an existing root.
+    const sourceStats = await lstat(source);
+    if (!sourceStats.isDirectory() || sourceStats.isSymbolicLink()) throw new Error("Market skill contains an unsupported link or file");
+    for (const child of await readdir(source)) {
+      await cp(path.join(source, child), path.join(destination, child), {
+        recursive: true,
+        errorOnExist: true,
+        force: false,
+        filter: async (source) => {
+          const stats = await lstat(source);
+          if (!stats.isDirectory() && !stats.isFile()) {
+            throw new Error(`Market skill contains an unsupported link or file: ${source}`);
+          }
+          return true;
+        },
+      });
+    }
     return destination;
   } catch (error) {
     await rm(destination, { recursive: true, force: true });

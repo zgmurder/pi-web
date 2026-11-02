@@ -57,6 +57,8 @@ node modules/local-browser/local-browser.e2e.mjs
 
 开发只运行 Turbopack，不在运行中的源码目录执行 `next build`。无需新增运行依赖。
 
+`rpc-manager` 到本机浏览器扩展及其网关的服务端依赖使用相对导入：上游集成测试直接通过 jiti 加载，不保证配置 Next 的 `@/` 别名。
+
 单测使用临时存储和模拟 Chrome API，覆盖认证、来源、配对、会话授权、只读预设、撤销和存储失败。隔离 E2E 使用临时浏览器用户目录及本地测试页，无真实账号/模型请求；验证 content script、HTTP 配对/轮询、七类动作和 IndexedDB 迁移/回滚/源隔离。E2E 在真实 worker 调用 popup 处理函数，popup sender 校验由单测覆盖，真实工具栏点击仍需人工验收。
 
 历史版本已在 Chrome 155 和官方 Chromium 109.0.5414.0 验证；指定浏览器可用 `PI_WEB_TEST_CHROME_EXECUTABLE='/path/to/chrome109' node modules/local-browser/connector.e2e.mjs`。实际企业/裁剪版浏览器、长期休眠、真实业务网站、CentOS 7 和多用户容量仍需部署验收；Chrome 109 已停止安全更新，不要访问不可信网站。
